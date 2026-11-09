@@ -1,0 +1,17 @@
+[project]
+name = "music-recommender"
+version = "0.1.0"
+description = "Recomendador de canciones basado en contenido, servido con una API en AWS."
+requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
