@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Datos
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Artefactos del modelo
+*.pkl
+*.joblib
+*.npy
+*.npz
+
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+rootkey*.csv
+*accessKeys*.csv
+credentials
+
+# Editor y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
