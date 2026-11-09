@@ -67,7 +67,7 @@ pytest
 
 Se usa el [Spotify Tracks Dataset](https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset)
 con fines exclusivamente académicos. Los datos se obtuvieron de la API de Spotify, por lo que
-no se redistribuyen en este repositorio. Para trabajar en local, descarga `dataset.csv` en `data/raw/`.
+no se redistribuyen en este repositorio. Para trabajar en local, descarga `dataset.csv` en `data/raw/` y corre `notebooks/01_exploracion_datos.ipynb`, que genera `data/processed/tracks_clean.csv`.
 
 ## Avance
 
