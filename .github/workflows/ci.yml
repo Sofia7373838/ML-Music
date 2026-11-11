@@ -25,3 +25,10 @@ jobs:
         run: ruff format --check .
       - name: Pruebas
         run: pytest
+  docker:
+    # Revisa que la imagen de Lambda se construya; no la sube a ningún lado.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir imagen
+        run: docker build --platform linux/amd64 --provenance=false -t music-recommender:ci .
