@@ -22,3 +22,13 @@ METADATA_COLUMNS = ["track_id", "track_name", "artists", "album_name"]
 
 # key es categórica; duration_ms y time_signature no describen cómo suena la canción.
 EXCLUDED_COLUMNS = ["key", "duration_ms", "time_signature"]
+
+# Entrenamiento y evaluación.
+SEED = 42
+DEFAULT_K = 10
+EVAL_QUERIES = 2_000
+# K del modelo B, elegido con el codo y la silueta en notebooks/02_modelos.ipynb.
+N_CLUSTERS = 8
+# Diferencia de precision@k por debajo de la cual dos modelos se consideran empatados
+# y se elige el más rápido.
+PRECISION_TOLERANCE = 0.01
