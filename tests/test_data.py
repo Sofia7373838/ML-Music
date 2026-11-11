@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from recommender.config import MODEL_FEATURES
-from recommender.data import REQUIRED_COLUMNS, clean, load_raw
+from recommender.data import REQUIRED_COLUMNS, clean, load_clean, load_raw, validate
 
 
 def make_track(track_id, name="Song", artists="Artist", genre="pop", popularity=50):
@@ -90,3 +90,51 @@ def test_load_raw_fails_when_column_is_missing(tmp_path):
 
     with pytest.raises(ValueError, match="energy"):
         load_raw(path)
+
+
+def clean_tracks(**changes):
+    rows = [make_track("a", name="One"), make_track("b", name="Two")]
+    df = clean(pd.DataFrame(rows).assign(tempo=120.0, loudness=-8.0, mode=1))
+    return df.assign(**changes)
+
+
+def test_validate_accepts_clean_data():
+    validate(clean_tracks())
+
+
+def test_validate_reports_values_out_of_range():
+    with pytest.raises(ValueError, match=r"energy: 2 valores fuera de \[0.0, 1.0\]"):
+        validate(clean_tracks(energy=1.5))
+
+
+def test_validate_reports_every_problem_at_once():
+    with pytest.raises(ValueError, match="tempo.*popularity"):
+        validate(clean_tracks(tempo=0, popularity=101))
+
+
+def test_validate_reports_nulls():
+    with pytest.raises(ValueError, match="artists: 2 nulos"):
+        validate(clean_tracks(artists=None))
+
+
+def test_validate_reports_repeated_track_id():
+    with pytest.raises(ValueError, match="track_id: 1 repetidos"):
+        validate(clean_tracks(track_id="a"))
+
+
+def test_validate_reports_missing_macro_genre_column():
+    with pytest.raises(ValueError, match="macro_genre"):
+        validate(clean_tracks().drop(columns="macro_genre"))
+
+
+def test_validate_rejects_empty_dataset():
+    with pytest.raises(ValueError, match="vacío"):
+        validate(clean_tracks().iloc[0:0])
+
+
+def test_load_clean_validates(tmp_path):
+    path = tmp_path / "clean.csv"
+    clean_tracks(valence=-1).to_csv(path, index=False)
+
+    with pytest.raises(ValueError, match="valence"):
+        load_clean(path)
