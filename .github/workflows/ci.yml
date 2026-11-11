@@ -31,4 +31,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Construir imagen
+        # Se salta mientras el Dockerfile no esté en el repositorio.
+        if: hashFiles('Dockerfile') != ''
         run: docker build --platform linux/amd64 --provenance=false -t music-recommender:ci .
