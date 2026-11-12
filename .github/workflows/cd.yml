@@ -1,0 +1,66 @@
+name: CD
+
+# Corre cuando el CI termina bien en main: construye la imagen, la sube a ECR y
+# actualiza la Lambda. Las llaves no viven en el repositorio: GitHub obtiene
+# credenciales temporales de AWS por OIDC.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cd
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # No corre hasta que existan las variables del repositorio (ver infra/README.md).
+    if: >-
+      vars.AWS_ROLE_ARN != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    # Sin `environment:` a propósito: cambiaría el claim `sub` del token OIDC y el rol
+    # de base.yaml solo confía en `repo:<owner>/<repo>:ref:refs/heads/main`.
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      LAMBDA_FUNCTION: ${{ vars.LAMBDA_FUNCTION }}
+      IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.IMAGE_TAG }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Construir y subir imagen
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+        run: |
+          docker build --platform linux/amd64 --provenance=false -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Actualizar Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION" \
+            --image-uri "$IMAGE" > /dev/null
+          aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION"
+
+      - name: Prueba de humo
+        if: vars.API_URL != ''
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 "${{ vars.API_URL }}/health"
