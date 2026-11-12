@@ -16,8 +16,8 @@ def build_preprocessor() -> ColumnTransformer:
     """
     return ColumnTransformer(
         [
-            ("scaled", StandardScaler(), SCALED_FEATURES), #  9 columnas: se estandarizan
-            ("binary", "passthrough", BINARY_FEATURES), #  mode (0 o 1): se deja igual
+            ("scaled", StandardScaler(), SCALED_FEATURES),  # 9 columnas: se estandarizan
+            ("binary", "passthrough", BINARY_FEATURES),  # mode (0 o 1): se deja igual
         ],
         verbose_feature_names_out=False,
     )
