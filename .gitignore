@@ -39,3 +39,6 @@ credentials
 .idea/
 .DS_Store
 Thumbs.db
+
+models/recommender.joblib
+models/metrics.json
