@@ -101,6 +101,10 @@ def validate(tracks: pd.DataFrame) -> None:
         outside = (~tracks[col].between(low, high)).sum()
         if outside:
             problems.append(f"{col}: {outside} valores fuera de [{low}, {high}]")
+            
+    not_boolean = (~tracks["explicit"].isin([True, False])).sum()
+    if not_boolean:
+        problems.append(f"explicit: {not_boolean} valores que no son True/False")
 
     if problems:
         raise ValueError("Dataset inválido: " + "; ".join(problems))

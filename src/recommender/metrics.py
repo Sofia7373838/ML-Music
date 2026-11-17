@@ -41,6 +41,31 @@ def catalog_coverage(recommended_indices: set[int], n_songs: int) -> float:
     """Fracción del catálogo que apareció en al menos una lista."""
     return len(recommended_indices) / n_songs
 
+def max_appearances(counts: Counter) -> int:
+    """Listas en las que aparece la canción más recomendada (detecta *hubs* de kNN)."""
+    return max(counts.values(), default=0)
+
+
+def by_group(rows: pd.DataFrame, tracks: pd.DataFrame, recommended: set[int], k: int) -> dict:
+    """Métricas por macro-género de la canción de entrada (mitigación 1 del análisis ético).
+
+    `exposure` es la fracción de canciones de ese macro-género que apareció en al menos una
+    lista: si un género queda muy abajo, el sistema casi no lo recomienda.
+    """
+    exposed = tracks.index.isin(list(recommended))
+    exposure = pd.Series(exposed, index=tracks.index).groupby(tracks["macro_genre"]).mean()
+    groups = rows.groupby("macro_genre")
+    summary = groups[["genre_precision", "diversity", "popularity_gap"]].mean()
+    return {
+        genre: {
+            "queries": int(groups.size()[genre]),
+            f"precision@{k}": round(float(summary.at[genre, "genre_precision"]), 4),
+            "diversity": round(float(summary.at[genre, "diversity"]), 4),
+            "popularity_gap": round(float(summary.at[genre, "popularity_gap"]), 2),
+            "exposure": round(float(exposure.get(genre, 0.0)), 4),
+        }
+        for genre in sorted(summary.index)
+    }
 
 def sample_queries(n_songs: int, n_queries: int, seed: int = 42) -> np.ndarray:
     """Índices de las canciones de prueba. Mismo `seed` = misma muestra para cada modelo."""
