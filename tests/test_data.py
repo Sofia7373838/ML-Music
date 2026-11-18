@@ -151,6 +151,7 @@ def test_validate_reports_explicit_that_is_not_boolean():
     with pytest.raises(ValueError, match="explicit: 2 valores"):
         validate(tracks)
 
+
 def test_clean_converts_explicit_to_bool():
     df = pd.DataFrame([make_track("a", name="One"), make_track("b", name="Two")])
     df["explicit"] = [1, 0]
