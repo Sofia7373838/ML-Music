@@ -89,6 +89,46 @@ class SongRecommender:
             for rec, sim in zip(recs, similarity, strict=True)
         ]
 
+    def _allowed(self, max_popularity: int | None, exclude_explicit: bool) -> np.ndarray | None:
+        """Máscara de canciones que se pueden recomendar, o None si no hay filtros."""
+        if max_popularity is None and not exclude_explicit:
+            return None
+        allowed = np.ones(len(self), dtype=bool)
+        if max_popularity is not None:
+            allowed &= (self.catalog["popularity"] <= max_popularity).to_numpy()
+        if exclude_explicit:
+            allowed &= ~self.catalog["explicit"].to_numpy(dtype=bool)
+        return allowed
+
+    def _select(
+        self, index: int, k: int, allowed: np.ndarray | None, max_per_artist: int | None
+        ) -> np.ndarray:
+        """Pide candidatos al modelo y aplica el tope por artista, conservando el orden."""
+        if max_per_artist is None:
+            return self.model.recommend(index, k, allowed=allowed)
+        n = k
+        while True:
+            candidates = self.model.recommend(index, n, allowed=allowed)
+            picked = self._cap_per_artist(candidates, k, max_per_artist)
+            if len(picked) >= k or len(candidates) < n:
+                return picked
+            n *= 4
+
+    def _cap_per_artist(self, candidates: np.ndarray, k: int, max_per_artist: int) -> np.ndarray:
+        counts: dict[str, int] = {}
+        picked = []
+        for candidate in candidates:
+            artists = _split_artists(self.catalog["artists"].iat[candidate])
+            if any(counts.get(artist, 0) >= max_per_artist for artist in artists):
+                continue
+            for artist in artists:
+                counts[artist] = counts.get(artist, 0) + 1
+            picked.append(candidate)
+            if len(picked) == k:
+                break
+        return np.asarray(picked, dtype=int)
+
+
     def save(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -106,6 +146,11 @@ class SongRecommender:
 def _cosine_similarity(query: np.ndarray, others: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(others, axis=1) * np.linalg.norm(query)
     return np.divide(others @ query, norms, out=np.zeros(len(others)), where=norms > 0)
+
+def _split_artists(artists: str) -> list[str]:
+    """El dataset separa a los artistas con `;`."""
+    return [artist.strip().casefold() for artist in artists.split(";") if artist.strip()]
+
 
 
 def _to_python(value: Any) -> Any:
