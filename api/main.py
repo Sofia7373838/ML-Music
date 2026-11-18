@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from api.model_store import get_recommender
 from api.monitoring import log_prediction
+from recommender.config import MAX_PER_ARTIST
 from recommender.pipeline import SongNotFoundError, SongRecommender
 
 app = FastAPI(
@@ -26,10 +27,15 @@ class Song(BaseModel):
     album_name: str
     track_genre: str
     popularity: int
+    explicit: bool
 
 
 class RecommendedSong(Song):
     similarity: float = Field(description="Similitud coseno con la canción de entrada (-1 a 1).")
+    reason: str = Field(
+        description="Rasgos de audio que comparte con la canción de entrada.",
+        examples=["Comparten: mucha energía y tempo rápido"],
+    )
 
 
 class RecommendationRequest(BaseModel):
@@ -40,6 +46,15 @@ class RecommendationRequest(BaseModel):
         ge=0,
         le=100,
         description="Solo recomendar canciones con esta popularidad o menos.",
+    )
+    exclude_explicit: bool = Field(
+        default=False, description="Quitar canciones con contenido explícito."
+    )
+    max_per_artist: int | None = Field(
+        default=MAX_PER_ARTIST,
+        ge=1,
+        le=50,
+        description="Máximo de canciones de un mismo artista en la lista. `null` = sin tope.",
     )
 
 
@@ -88,12 +103,18 @@ def recommend(recommender: Recommender, request: RecommendationRequest) -> Recom
     start = time.perf_counter()
     try:
         query = recommender.song(recommender.find(request.track_id))
-        recs = recommender.recommend(request.track_id, request.k, request.max_popularity)
+        recs = recommender.recommend(
+            request.track_id,
+            request.k,
+            max_popularity=request.max_popularity,
+            exclude_explicit=request.exclude_explicit,
+            max_per_artist=request.max_per_artist,
+        )
     except SongNotFoundError:
-        _log(recommender, request, start, results=0, found=False)
+        _log(recommender, request, start, recs=[], found=False)
         raise HTTPException(404, f"No existe la canción {request.track_id}") from None
 
-    _log(recommender, request, start, results=len(recs), found=True)
+    _log(recommender, request, start, recs=recs, found=True)
     return RecommendationResponse(model=recommender.model_name, query=query, recommendations=recs)
 
 
@@ -101,7 +122,7 @@ def _log(
     recommender: SongRecommender,
     request: RecommendationRequest,
     start: float,
-    results: int,
+    recs: list[dict],
     found: bool,
 ) -> None:
     log_prediction(
@@ -110,7 +131,11 @@ def _log(
         latency_ms=(time.perf_counter() - start) * 1000,
         track_id=request.track_id,
         k=request.k,
-        results=results,
         found=found,
         max_popularity=request.max_popularity,
+        exclude_explicit=request.exclude_explicit,
+        max_per_artist=request.max_per_artist,
+        recommended_ids=[rec["track_id"] for rec in recs],
+        recommended_popularity=[rec["popularity"] for rec in recs],
+        recommended_explicit=sum(rec["explicit"] for rec in recs),
     )

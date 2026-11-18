@@ -1,6 +1,6 @@
 import pytest
 
-from recommender.models import ClusterKNNRecommender
+from recommender.models import ClusterKNNRecommender, KNNRecommender
 from recommender.pipeline import SONG_FIELDS, SongNotFoundError, SongRecommender
 
 
@@ -52,6 +52,45 @@ def test_recommend_respects_max_popularity(song_recommender):
 
     assert recs
     assert all(rec["popularity"] <= 30 for rec in recs)
+
+
+def test_recommend_explains_each_song(song_recommender):
+    recs = song_recommender.recommend("clasica-00", k=3)
+
+    assert all(rec["reason"] for rec in recs)
+
+
+def test_recommend_can_exclude_explicit_songs(song_recommender):
+    recs = song_recommender.recommend("rock-00", k=10, exclude_explicit=True)
+
+    assert len(recs) == 10
+    assert not any(rec["explicit"] for rec in recs)
+
+
+def test_recommend_caps_songs_per_artist(song_recommender):
+    recs = song_recommender.recommend("rock-00", k=10, max_per_artist=2)
+
+    artists = [rec["artists"] for rec in recs]
+    assert len(recs) == 10
+    assert max(artists.count(artist) for artist in artists) == 2
+
+
+def test_artist_cap_counts_each_artist_of_a_collaboration(tracks):
+    tracks = tracks.copy()
+    tracks.loc[tracks["track_id"] == "rock-01", "artists"] = "Rock Artist 0;Guest"
+    recommender = SongRecommender.train(tracks, KNNRecommender())
+
+    recs = recommender.recommend("rock-00", k=19, max_per_artist=1)
+
+    artist_zero = [r for r in recs if "rock artist 0" in r["artists"].casefold()]
+    assert len(artist_zero) <= 1
+
+
+def test_artist_cap_returns_fewer_when_not_enough_artists(song_recommender):
+    # Solo hay 5 artistas de rock: con tope 1 y filtro de popularidad no alcanza para k.
+    recs = song_recommender.recommend("rock-00", k=10, max_per_artist=1, max_popularity=50)
+
+    assert len({rec["artists"] for rec in recs}) == len(recs)
 
 
 def test_recommend_unknown_track_raises(song_recommender):

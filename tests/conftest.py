@@ -34,6 +34,7 @@ def make_tracks(per_group: int = 20, seed: int = 0) -> pd.DataFrame:
                 track_genre=genre,
                 macro_genre=genre,
                 popularity=int(i * 100 / (per_group - 1)),
+                explicit=i % 3 == 0,
                 mode=i % 2,
             )
             rows.append(row)

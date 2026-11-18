@@ -1,3 +1,5 @@
+from collections import Counter
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -8,6 +10,7 @@ from recommender.metrics import (
     evaluate,
     genre_precision,
     intra_list_diversity,
+    max_appearances,
     popularity_gap,
     sample_queries,
 )
@@ -46,6 +49,11 @@ def test_catalog_coverage():
     assert catalog_coverage({1, 2, 3}, n_songs=12) == 0.25
 
 
+def test_max_appearances_counts_most_recommended_song():
+    assert max_appearances(Counter([1, 2, 2, 3, 2])) == 3
+    assert max_appearances(Counter()) == 0
+
+
 def test_sample_queries_is_reproducible_and_without_repeats():
     first = sample_queries(100, 20, seed=3)
 
@@ -77,3 +85,17 @@ def test_knn_beats_random_baseline_on_separated_groups(tracks, features):
 
     assert knn["precision@5"] > random["precision@5"]
     assert knn["diversity"] < random["diversity"]
+
+
+def test_evaluate_reports_metrics_by_macro_genre(tracks, features):
+    queries = sample_queries(len(tracks), 30)
+
+    result = evaluate(KNNRecommender().fit(features), tracks, features, queries, k=5)
+
+    groups = result["by_macro_genre"]
+    assert set(groups) == set(tracks["macro_genre"])
+    assert sum(g["queries"] for g in groups.values()) == 30
+    for group in groups.values():
+        assert 0 <= group["precision@5"] <= 1
+        assert 0 <= group["exposure"] <= 1
+    assert result["max_appearances"] >= 1

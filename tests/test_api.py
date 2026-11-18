@@ -53,6 +53,7 @@ def test_recommendations(client):
     assert body["query"]["track_id"] == "clasica-02"
     assert len(body["recommendations"]) == 4
     assert all("similarity" in rec for rec in body["recommendations"])
+    assert all(rec["reason"] for rec in body["recommendations"])
 
 
 def test_recommendations_with_max_popularity(client):
@@ -63,7 +64,33 @@ def test_recommendations_with_max_popularity(client):
     assert all(rec["popularity"] <= 20 for rec in response.json()["recommendations"])
 
 
-@pytest.mark.parametrize("payload", [{"track_id": "rock-01", "k": 0}, {"k": 5}])
+def test_recommendations_can_exclude_explicit_songs(client):
+    response = client.post(
+        "/recommendations", json={"track_id": "rock-01", "k": 10, "exclude_explicit": True}
+    )
+
+    assert not any(rec["explicit"] for rec in response.json()["recommendations"])
+
+
+def test_recommendations_cap_songs_per_artist_by_default(client):
+    response = client.post("/recommendations", json={"track_id": "rock-01", "k": 10})
+
+    artists = [rec["artists"] for rec in response.json()["recommendations"]]
+    assert max(artists.count(artist) for artist in artists) <= 2
+
+
+def test_recommendations_without_artist_cap(client):
+    response = client.post(
+        "/recommendations", json={"track_id": "rock-01", "k": 19, "max_per_artist": None}
+    )
+
+    assert len(response.json()["recommendations"]) == 19
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"track_id": "rock-01", "k": 0}, {"k": 5}, {"track_id": "rock-01", "max_per_artist": 0}],
+)
 def test_recommendations_validates_request(client, payload):
     assert client.post("/recommendations", json=payload).status_code == 422
 
@@ -75,6 +102,8 @@ def test_recommendations_logs_each_prediction(client, capsys):
     assert event["track_id"] == "rock-01"
     assert event["Recommendations"] == 2
     assert event["SongNotFound"] == 0
+    assert len(event["recommended_ids"]) == 2
+    assert len(event["RecommendedPopularity"]) == 2
 
 
 def test_unknown_song_returns_404_and_is_logged(client, capsys):

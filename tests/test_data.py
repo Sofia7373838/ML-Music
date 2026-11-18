@@ -14,6 +14,7 @@ def make_track(track_id, name="Song", artists="Artist", genre="pop", popularity=
         album_name="Album",
         track_genre=genre,
         popularity=popularity,
+        explicit=False,
     )
     return row
 
@@ -130,6 +131,18 @@ def test_validate_reports_missing_macro_genre_column():
 def test_validate_rejects_empty_dataset():
     with pytest.raises(ValueError, match="vacío"):
         validate(clean_tracks().iloc[0:0])
+
+
+def test_validate_reports_explicit_that_is_not_boolean():
+    with pytest.raises(ValueError, match="explicit: 2 valores"):
+        validate(clean_tracks(explicit="tal vez"))
+
+
+def test_clean_converts_explicit_to_bool():
+    df = pd.DataFrame([make_track("a", name="One"), make_track("b", name="Two")])
+    df["explicit"] = [1, 0]
+
+    assert clean(df).set_index("track_id")["explicit"].to_dict() == {"a": True, "b": False}
 
 
 def test_load_clean_validates(tmp_path):

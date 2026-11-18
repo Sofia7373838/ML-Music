@@ -202,11 +202,52 @@ Resources:
               }
             },
             {
-              "type": "log", "x": 0, "y": 12, "width": 24, "height": 6,
+              "type": "metric", "x": 0, "y": 12, "width": 12, "height": 6,
+              "properties": {
+                "title": "Popularidad de lo recomendado (sesgo de popularidad)",
+                "region": "${AWS::Region}", "period": 3600,
+                "yAxis": { "left": { "min": 0, "max": 100 } },
+                "metrics": [
+                  ["MusicRecommender", "RecommendedPopularity", "Endpoint", "recommendations", { "stat": "p50", "label": "mediana" }],
+                  ["...", { "stat": "Average", "label": "promedio" }],
+                  ["...", { "stat": "p90", "label": "p90" }]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 12, "width": 12, "height": 6,
+              "properties": {
+                "title": "Canciones explícitas recomendadas",
+                "region": "${AWS::Region}", "stat": "Sum", "period": 3600,
+                "metrics": [
+                  ["MusicRecommender", "ExplicitRecommended", "Endpoint", "recommendations"]
+                ]
+              }
+            },
+            {
+              "type": "log", "x": 0, "y": 18, "width": 12, "height": 6,
+              "properties": {
+                "title": "Hubs: canciones que más salen en primer lugar",
+                "region": "${AWS::Region}",
+                "query": "SOURCE '/aws/lambda/${ProjectName}-api' | filter Endpoint = 'recommendations' and SongNotFound = 0 | stats count(*) as listas by `recommended_ids.0` | sort listas desc | limit 20",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log", "x": 12, "y": 18, "width": 12, "height": 6,
+              "properties": {
+                "title": "Uso de los filtros (descubrimiento, explícito, tope por artista)",
+                "region": "${AWS::Region}",
+                "query": "SOURCE '/aws/lambda/${ProjectName}-api' | filter Endpoint = 'recommendations' | stats count(*) as peticiones by ispresent(max_popularity) as descubrimiento, exclude_explicit, max_per_artist",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log", "x": 0, "y": 24, "width": 24, "height": 6,
               "properties": {
                 "title": "Últimas predicciones",
                 "region": "${AWS::Region}",
-                "query": "SOURCE '/aws/lambda/${ProjectName}-api' | fields @timestamp, track_id, k, Recommendations, Latency, SongNotFound | filter Endpoint = 'recommendations' | sort @timestamp desc | limit 50",
+                "query": "SOURCE '/aws/lambda/${ProjectName}-api' | fields @timestamp, track_id, k, Recommendations, Latency, SongNotFound, exclude_explicit, max_per_artist | filter Endpoint = 'recommendations' | sort @timestamp desc | limit 50",
                 "view": "table"
               }
             }
