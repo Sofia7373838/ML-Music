@@ -104,39 +104,52 @@ def test_validate_accepts_clean_data():
 
 
 def test_validate_reports_values_out_of_range():
+    tracks = clean_tracks(energy=1.5)
+
     with pytest.raises(ValueError, match=r"energy: 2 valores fuera de \[0.0, 1.0\]"):
-        validate(clean_tracks(energy=1.5))
+        validate(tracks)
 
 
 def test_validate_reports_every_problem_at_once():
+    tracks = clean_tracks(tempo=0, popularity=101)
+
     with pytest.raises(ValueError, match="tempo.*popularity"):
-        validate(clean_tracks(tempo=0, popularity=101))
+        validate(tracks)
 
 
 def test_validate_reports_nulls():
+    tracks = clean_tracks(artists=None)
+
     with pytest.raises(ValueError, match="artists: 2 nulos"):
-        validate(clean_tracks(artists=None))
+        validate(tracks)
 
 
 def test_validate_reports_repeated_track_id():
+    tracks = clean_tracks(track_id="a")
+
     with pytest.raises(ValueError, match="track_id: 1 repetidos"):
-        validate(clean_tracks(track_id="a"))
+        validate(tracks)
 
 
 def test_validate_reports_missing_macro_genre_column():
+    tracks = clean_tracks().drop(columns="macro_genre")
+
     with pytest.raises(ValueError, match="macro_genre"):
-        validate(clean_tracks().drop(columns="macro_genre"))
+        validate(tracks)
 
 
 def test_validate_rejects_empty_dataset():
+    tracks = clean_tracks().iloc[0:0]
+
     with pytest.raises(ValueError, match="vacío"):
-        validate(clean_tracks().iloc[0:0])
+        validate(tracks)
 
 
 def test_validate_reports_explicit_that_is_not_boolean():
-    with pytest.raises(ValueError, match="explicit: 2 valores"):
-        validate(clean_tracks(explicit="tal vez"))
+    tracks = clean_tracks(explicit="tal vez")
 
+    with pytest.raises(ValueError, match="explicit: 2 valores"):
+        validate(tracks)
 
 def test_clean_converts_explicit_to_bool():
     df = pd.DataFrame([make_track("a", name="One"), make_track("b", name="Two")])
