@@ -12,8 +12,9 @@ corran exactamente el mismo código.
 | `data.py` | `load_raw`, `clean`, `load_clean` y `validate` (columnas, nulos, duplicados y rangos) |
 | `features.py` | Estandariza las variables continuas y deja `mode` como 0/1 |
 | `models.py` | Modelo A, modelo B, referencia al azar y `cluster_scores` (codo y silueta) |
-| `metrics.py` | Las métricas de la Tabla 2 y `evaluate` |
-| `pipeline.py` | `SongRecommender`: preprocesador + modelo + catálogo. Es el artefacto que usa la API |
+| `metrics.py` | Las métricas de la Tabla 2, las métricas por macro-género y `evaluate` |
+| `explain.py` | Explica en palabras qué rasgos de audio comparten dos canciones (campo `reason` de la API) |
+| `pipeline.py` | `SongRecommender`: preprocesador + modelo + catálogo, con filtros y tope por artista. Es el artefacto que usa la API |
 | `train.py` | Entrena los tres modelos, los compara, elige uno y guarda el artefacto |
 
 ## Flujo
@@ -34,6 +35,8 @@ dataset.csv ─load_raw─> clean ─> validate ─> build_preprocessor ─> mat
 
 Entran 10 variables: `danceability`, `energy`, `speechiness`, `acousticness`,
 `instrumentalness`, `liveness`, `valence`, `loudness`, `tempo` (estandarizadas) y `mode` (0/1).
+
+- `explicit` tampoco entra al modelo: solo se guarda en el catálogo para el filtro de la API.
 
 - Se estandarizan porque `tempo` (~120) y `loudness` (~-8 dB) dominarían la similitud frente
   a variables entre 0 y 1.
@@ -69,6 +72,12 @@ mientras que la inercia se aplana alrededor de 8.
 | Cobertura | `catalog_coverage` | Fracción del catálogo que aparece en alguna lista |
 | Sesgo de popularidad | `popularity_gap` | Popularidad promedio recomendada menos la de la entrada |
 | Latencia | `evaluate` | p50 y p95 de una llamada a `recommend`, en ms |
+| Hubs | `max_appearances` | En cuántas listas sale la canción más recomendada |
+
+Además, `evaluate` regresa `by_macro_genre`: precision@k, diversidad, sesgo de popularidad y
+**exposición** (fracción de canciones del macro-género que aparecieron en al menos una lista)
+para cada macro-género de la canción de entrada. Es la mitigación 1 del análisis ético: un
+promedio bueno puede esconder que a un género le va mucho peor.
 
 La cobertura máxima posible con 2,000 consultas × 10 recomendaciones es 20,000 / 81,061 ≈ 24.7 %,
 así que el 21.5 % de los modelos está cerca del tope.
@@ -115,4 +124,31 @@ song = rec.search("bohemian rhapsody", limit=1)[0]
 rec.recommend(song["track_id"], k=10)
 # Solo canciones poco populares, para descubrir artistas con poca visibilidad
 rec.recommend(song["track_id"], k=10, max_popularity=30)
+# Sin canciones explícitas y con máximo 2 canciones por artista (lo que hace la API por omisión)
+rec.recommend(song["track_id"], k=10, exclude_explicit=True, max_per_artist=2)
 ```
+
+Cada recomendación trae `similarity` (coseno) y `reason`, por ejemplo
+`"Comparten: mucha energía y tempo rápido"`.
+
+## Filtros y re-ranking
+
+`SongRecommender.recommend` aplica sobre lo que regresa el modelo:
+
+| Opción | Qué hace | Mitigación |
+| --- | --- | --- |
+| `max_popularity` | Solo canciones con esa popularidad o menos | 4. Modo descubrimiento |
+| `exclude_explicit` | Quita canciones con `explicit = True` | 5. Contenido explícito |
+| `max_per_artist` | Máximo n canciones por artista; en colaboraciones (`A;B`) cuenta para cada uno | 3. Re-ranking |
+
+Los filtros se pasan al modelo como máscara, así que se siguen buscando vecinos hasta juntar
+`k`. El tope por artista conserva el orden de similitud: se salta una canción solo si su
+artista ya llenó su cupo. Ninguno cambia el entrenamiento ni la evaluación de los modelos.
+
+## Explicaciones (`explain.py`)
+
+En el espacio estandarizado, un valor positivo es "más que la canción promedio" y uno
+negativo "menos". Un rasgo se considera compartido si las dos canciones se alejan del
+promedio en la misma dirección, con fuerza `min(|a|, |b|)`. Se reportan los dos más fuertes
+que pasen de media desviación estándar; si ninguno pasa, la razón es "perfil de audio parecido
+en general".

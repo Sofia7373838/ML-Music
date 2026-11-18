@@ -27,7 +27,13 @@ Cuerpo de `POST /recommendations`:
 | --- | --- | --- | --- |
 | `track_id` | texto | (obligatorio) | Canción de entrada; se obtiene con `/songs/search` |
 | `k` | 1 a 50 | 10 | Número de recomendaciones |
-| `max_popularity` | 0 a 100 | `null` | Solo recomendar canciones con esa popularidad o menos, para descubrir artistas con poca visibilidad |
+| `max_popularity` | 0 a 100 | `null` | Modo descubrimiento: solo recomendar canciones con esa popularidad o menos, para dar visibilidad a artistas pequeños |
+| `exclude_explicit` | booleano | `false` | Quitar canciones con contenido explícito |
+| `max_per_artist` | 1 a 50 o `null` | 2 | Máximo de canciones de un mismo artista en la lista; `null` = sin tope |
+
+Cada canción de la respuesta trae `explicit`, y cada recomendación además `similarity` y
+`reason` (qué rasgos de audio comparte con la de entrada). Estos parámetros son las
+mitigaciones 3, 4, 5 y 8 del análisis ético.
 
 Respuestas de error: `404` si la canción no existe y `422` si el cuerpo no es válido.
 
@@ -39,6 +45,11 @@ curl "http://localhost:8000/songs/search?q=bohemian%20rhapsody&limit=1"
 curl -X POST http://localhost:8000/recommendations \
   -H "Content-Type: application/json" \
   -d '{"track_id": "4u7EnebtmKWzUH433cf5Qv", "k": 3}'
+
+# Sin explícitas, solo canciones poco populares
+curl -X POST http://localhost:8000/recommendations \
+  -H "Content-Type: application/json" \
+  -d '{"track_id": "4u7EnebtmKWzUH433cf5Qv", "k": 5, "exclude_explicit": true, "max_popularity": 30}'
 ```
 
 ```json
@@ -52,6 +63,10 @@ curl -X POST http://localhost:8000/recommendations \
   ]
 }
 ```
+
+Con esta versión cada recomendación también trae `"explicit": false` y un campo como
+`"reason": "Comparten: volumen alto y tempo rápido"`. Los valores exactos dependen del modelo
+entrenado.
 
 `similarity` es la similitud coseno (de -1 a 1) entre la canción de entrada y la recomendada
 en el espacio de características estandarizadas.
@@ -117,8 +132,11 @@ CloudWatch Logs la guarda como log y además crea estas métricas en el namespac
 | `Latency` | ms | Tiempo de buscar la canción y generar las recomendaciones |
 | `Recommendations` | conteo | Cuántas canciones se regresaron |
 | `SongNotFound` | conteo | 1 si el `track_id` no existe |
+| `RecommendedPopularity` | valor | Popularidad de cada canción recomendada (lista de valores; CloudWatch calcula promedio y percentiles). Vigila el sesgo de popularidad |
+| `ExplicitRecommended` | conteo | Cuántas canciones explícitas se regresaron |
 
-Además el log incluye `model`, `track_id`, `k` y `max_popularity`. **No se registra ningún
-dato personal** (ni IP, ni usuario, ni encabezados): solo la canción consultada, el resultado
-y el tiempo de respuesta. El dashboard y las alarmas que usan estas métricas están en
+Además el log incluye `model`, `track_id`, `k`, los filtros (`max_popularity`,
+`exclude_explicit`, `max_per_artist`) y `recommended_ids`, que el dashboard usa para detectar
+*hubs* (canciones que salen en demasiadas listas). **No se registra ningún dato personal** (ni
+IP, ni usuario, ni encabezados): solo canciones, filtros, el resultado y el tiempo de respuesta. El dashboard y las alarmas que usan estas métricas están en
 [`infra/app.yaml`](../infra/app.yaml).

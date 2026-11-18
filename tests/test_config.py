@@ -2,6 +2,7 @@ from recommender.config import (
     BINARY_FEATURES,
     EVALUATION_COLUMNS,
     EXCLUDED_COLUMNS,
+    FILTER_COLUMNS,
     METADATA_COLUMNS,
     MODEL_FEATURES,
     SCALED_FEATURES,
@@ -20,6 +21,7 @@ def test_model_does_not_receive_evaluation_columns():
 def test_model_does_not_receive_excluded_or_metadata_columns():
     assert not set(MODEL_FEATURES) & set(EXCLUDED_COLUMNS)
     assert not set(MODEL_FEATURES) & set(METADATA_COLUMNS)
+
 
 def test_model_does_not_receive_filter_columns():
     assert not set(MODEL_FEATURES) & set(FILTER_COLUMNS)

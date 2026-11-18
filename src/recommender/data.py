@@ -4,10 +4,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from recommender.config import EVALUATION_COLUMNS, METADATA_COLUMNS, MODEL_FEATURES
+from recommender.config import (
+    EVALUATION_COLUMNS,
+    FILTER_COLUMNS,
+    METADATA_COLUMNS,
+    MODEL_FEATURES,
+)
 from recommender.genres import to_macro_genre
 
-REQUIRED_COLUMNS = METADATA_COLUMNS + MODEL_FEATURES + EVALUATION_COLUMNS
+REQUIRED_COLUMNS = METADATA_COLUMNS + MODEL_FEATURES + EVALUATION_COLUMNS + FILTER_COLUMNS
 
 # Rangos válidos según la documentación de la API de Spotify. La sonoridad puede pasar
 # un poco de 0 dB y el tempo nunca es 0 después de `clean`.
@@ -47,6 +52,7 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     """
     tracks = df[REQUIRED_COLUMNS].dropna()
     tracks = tracks[tracks["tempo"] > 0].copy()
+    tracks["explicit"] = tracks["explicit"].astype(bool)
     tracks["macro_genre"] = tracks["track_genre"].map(to_macro_genre)
 
     key = ["_name", "_artists"]
@@ -101,7 +107,7 @@ def validate(tracks: pd.DataFrame) -> None:
         outside = (~tracks[col].between(low, high)).sum()
         if outside:
             problems.append(f"{col}: {outside} valores fuera de [{low}, {high}]")
-            
+
     not_boolean = (~tracks["explicit"].isin([True, False])).sum()
     if not_boolean:
         problems.append(f"explicit: {not_boolean} valores que no son True/False")

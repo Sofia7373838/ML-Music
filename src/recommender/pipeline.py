@@ -9,12 +9,21 @@ import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 
-from recommender.config import METADATA_COLUMNS, MODEL_FEATURES
+from recommender.config import FILTER_COLUMNS, METADATA_COLUMNS, MODEL_FEATURES
+from recommender.explain import explain
 from recommender.features import build_preprocessor, to_matrix
 from recommender.models import Recommender
 
-CATALOG_COLUMNS = METADATA_COLUMNS + ["track_genre", "macro_genre", "popularity"]
-SONG_FIELDS = ["track_id", "track_name", "artists", "album_name", "track_genre", "popularity"]
+CATALOG_COLUMNS = METADATA_COLUMNS + ["track_genre", "macro_genre", "popularity"] + FILTER_COLUMNS
+SONG_FIELDS = [
+    "track_id",
+    "track_name",
+    "artists",
+    "album_name",
+    "track_genre",
+    "popularity",
+    "explicit",
+]
 
 
 class SongNotFoundError(KeyError):
@@ -70,22 +79,35 @@ class SongRecommender:
         return [self.song(self._index[track_id]) for track_id in top["track_id"]]
 
     def recommend(
-        self, track_id: str, k: int = 10, max_popularity: int | None = None
+        self,
+        track_id: str,
+        k: int = 10,
+        max_popularity: int | None = None,
+        exclude_explicit: bool = False,
+        max_per_artist: int | None = None,
     ) -> list[dict[str, Any]]:
-        """Regresa `k` canciones parecidas a `track_id` con su similitud coseno.
+        """Regresa `k` canciones parecidas a `track_id` con su similitud y una explicación.
 
-        `max_popularity` limita las recomendaciones a canciones con esa popularidad o
-        menos, para descubrir artistas con poca visibilidad.
+        Filtros y re-ranking (mitigaciones del análisis ético):
+
+        - `max_popularity`: solo canciones con esa popularidad o menos ("modo descubrimiento",
+          para dar visibilidad a artistas pequeños).
+        - `exclude_explicit`: quita canciones con contenido explícito.
+        - `max_per_artist`: como máximo esa cantidad de canciones de un mismo artista; si una
+          canción tiene varios artistas, cuenta para cada uno.
         """
         index = self.find(track_id)
-        allowed = None
-        if max_popularity is not None:
-            allowed = (self.catalog["popularity"] <= max_popularity).to_numpy()
-
-        recs = self.model.recommend(index, k, allowed=allowed)
-        similarity = _cosine_similarity(self.model.features[index], self.model.features[recs])
+        recs = self._select(
+            index, k, self._allowed(max_popularity, exclude_explicit), max_per_artist
+        )
+        features = self.model.features
+        similarity = _cosine_similarity(features[index], features[recs])
         return [
-            {**self.song(rec), "similarity": round(float(sim), 4)}
+            {
+                **self.song(rec),
+                "similarity": round(float(sim), 4),
+                "reason": explain(features[index], features[rec]),
+            }
             for rec, sim in zip(recs, similarity, strict=True)
         ]
 
@@ -102,7 +124,7 @@ class SongRecommender:
 
     def _select(
         self, index: int, k: int, allowed: np.ndarray | None, max_per_artist: int | None
-        ) -> np.ndarray:
+    ) -> np.ndarray:
         """Pide candidatos al modelo y aplica el tope por artista, conservando el orden."""
         if max_per_artist is None:
             return self.model.recommend(index, k, allowed=allowed)
@@ -128,7 +150,6 @@ class SongRecommender:
                 break
         return np.asarray(picked, dtype=int)
 
-
     def save(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -147,10 +168,10 @@ def _cosine_similarity(query: np.ndarray, others: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(others, axis=1) * np.linalg.norm(query)
     return np.divide(others @ query, norms, out=np.zeros(len(others)), where=norms > 0)
 
+
 def _split_artists(artists: str) -> list[str]:
     """El dataset separa a los artistas con `;`."""
     return [artist.strip().casefold() for artist in artists.split(";") if artist.strip()]
-
 
 
 def _to_python(value: Any) -> Any:

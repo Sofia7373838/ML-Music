@@ -6,8 +6,8 @@ es lo mismo que corre el entrenamiento y la API. Se corren desde esta carpeta (u
 
 | Notebook | Entrada | Salida | Qué muestra |
 | --- | --- | --- | --- |
-| `01_exploracion_datos.ipynb` | `data/raw/dataset.csv` | `data/processed/tracks_clean.csv` | Resumen del dataset, géneros sin macro-género, distribuciones, correlaciones, popularidad, filas con tempo 0 y el resultado de la limpieza |
-| `02_modelos.ipynb` | `data/processed/tracks_clean.csv` | — | Codo y silueta para elegir K, composición de los clústeres, comparación de los tres modelos, elección del final y un ejemplo de recomendaciones |
+| `01_exploracion_datos.ipynb` | `data/raw/dataset.csv` | `data/processed/tracks_clean.csv` | Resumen del dataset, géneros sin macro-género, distribuciones, correlaciones, popularidad, filas con tempo 0, contenido explícito por macro-género y el resultado de la limpieza |
+| `02_modelos.ipynb` | `data/processed/tracks_clean.csv` | — | Codo y silueta para elegir K, composición de los clústeres, comparación de los tres modelos, elección del final, un ejemplo con explicaciones, métricas por macro-género y el efecto de las mitigaciones (tope por artista, explícitas, descubrimiento) |
 
 ## Cómo correrlos
 

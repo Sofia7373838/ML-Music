@@ -100,8 +100,10 @@ Desde ese momento cada merge a `main` que pase el CI se despliega solo (ver
 `app.yaml` crea:
 
 - **Dashboard `music-recommender`**: invocaciones, errores y throttles de Lambda; latencia
-  p50/p95 del modelo; canciones no encontradas; duración de Lambda; y una tabla con las
-  últimas 50 predicciones (CloudWatch Logs Insights).
+  p50/p95 del modelo; canciones no encontradas; duración de Lambda; popularidad de lo
+  recomendado (mediana, promedio y p90, para vigilar el sesgo de popularidad); canciones
+  explícitas recomendadas; y tres tablas de CloudWatch Logs Insights: canciones que más salen
+  en primer lugar (*hubs*), uso de los filtros y las últimas 50 predicciones.
 - **Alarma `music-recommender-errores`**: al menos un error de Lambda en 5 minutos.
 - **Alarma `music-recommender-latencia`**: p95 de `Latency` arriba de `LatencyAlarmMs`
   (500 ms) durante 15 minutos.

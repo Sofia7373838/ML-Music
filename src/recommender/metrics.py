@@ -1,6 +1,7 @@
 """Métricas para comparar los modelos sin usuarios reales (Tabla 2 del avance 1)."""
 
 import time
+from collections import Counter
 
 import numpy as np
 import pandas as pd
@@ -41,6 +42,7 @@ def catalog_coverage(recommended_indices: set[int], n_songs: int) -> float:
     """Fracción del catálogo que apareció en al menos una lista."""
     return len(recommended_indices) / n_songs
 
+
 def max_appearances(counts: Counter) -> int:
     """Listas en las que aparece la canción más recomendada (detecta *hubs* de kNN)."""
     return max(counts.values(), default=0)
@@ -67,6 +69,7 @@ def by_group(rows: pd.DataFrame, tracks: pd.DataFrame, recommended: set[int], k:
         for genre in sorted(summary.index)
     }
 
+
 def sample_queries(n_songs: int, n_queries: int, seed: int = 42) -> np.ndarray:
     """Índices de las canciones de prueba. Mismo `seed` = misma muestra para cada modelo."""
     rng = np.random.default_rng(seed)
@@ -83,17 +86,18 @@ def evaluate(
     """Corre el modelo sobre cada canción de `queries` y promedia las métricas."""
     rows = []
     latencies_ms = []
-    recommended: set[int] = set()
+    appearances: Counter = Counter()
 
     for query in queries:
         start = time.perf_counter()
         recs = model.recommend(int(query), k)
         latencies_ms.append((time.perf_counter() - start) * 1000)
 
-        recommended.update(recs.tolist())
+        appearances.update(recs.tolist())
         rec_tracks = tracks.iloc[recs]
         rows.append(
             {
+                "macro_genre": tracks["macro_genre"].iat[query],
                 "genre_precision": genre_precision(
                     tracks["macro_genre"].iat[query], rec_tracks["macro_genre"]
                 ),
@@ -105,7 +109,9 @@ def evaluate(
             }
         )
 
-    means = pd.DataFrame(rows).mean()
+    rows = pd.DataFrame(rows)
+    means = rows.drop(columns="macro_genre").mean()
+    recommended = set(appearances)
     return {
         "model": model.name,
         "k": k,
@@ -117,4 +123,6 @@ def evaluate(
         "coverage": round(catalog_coverage(recommended, len(tracks)), 4),
         "latency_p50_ms": round(float(np.percentile(latencies_ms, 50)), 3),
         "latency_p95_ms": round(float(np.percentile(latencies_ms, 95)), 3),
+        "max_appearances": max_appearances(appearances),
+        "by_macro_genre": by_group(rows, tracks.reset_index(drop=True), recommended, k),
     }

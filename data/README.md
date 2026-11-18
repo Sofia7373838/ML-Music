@@ -22,7 +22,8 @@ aws s3 cp data/processed/tracks_clean.csv s3://<bucket>/data/processed/tracks_cl
 
 ## Limpieza (`recommender.data.clean`)
 
-1. Se quedan solo las columnas que usa el proyecto.
+1. Se quedan solo las columnas que usa el proyecto (incluida `explicit`, que solo sirve para
+   el filtro de la API).
 2. Se quitan filas con nulos.
 3. Se quitan filas con `tempo` = 0 (no se detectó ritmo: ruido blanco, audio para dormir).
 4. Se agrega `macro_genre` a partir de `track_genre` (`recommender.genres`).
@@ -45,6 +46,12 @@ Se corre antes de cada entrenamiento y reporta todos los problemas a la vez:
 | `tempo` | 1 a 300 BPM |
 | `mode` | 0 o 1 |
 | `popularity` | 0 a 100 |
+| `explicit` | `True` o `False` |
+
+> Si tienes un `tracks_clean.csv` generado antes de que se agregara `explicit`, la validación
+> fallará con `Faltan columnas en el dataset: ['explicit']`. Vuelve a correr
+> `01_exploracion_datos.ipynb` (o borra el CSV: `python -m recommender.train` limpia el
+> original si no encuentra el limpio).
 
 ## Uso de los datos
 

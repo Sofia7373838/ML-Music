@@ -20,6 +20,9 @@ EVALUATION_COLUMNS = ["track_genre", "popularity"]
 
 METADATA_COLUMNS = ["track_id", "track_name", "artists", "album_name"]
 
+# Solo se usan para filtrar lo que regresa la API (por ejemplo, `exclude_explicit`).
+FILTER_COLUMNS = ["explicit"]
+
 # key es categórica; duration_ms y time_signature no describen cómo suena la canción.
 EXCLUDED_COLUMNS = ["key", "duration_ms", "time_signature"]
 
@@ -32,3 +35,7 @@ N_CLUSTERS = 8
 # Diferencia de precision@k por debajo de la cual dos modelos se consideran empatados
 # y se elige el más rápido.
 PRECISION_TOLERANCE = 0.01
+
+# Mitigaciones del análisis ético (sección 9.4 del avance 1).
+# Máximo de canciones del mismo artista en una lista de la API.
+MAX_PER_ARTIST = 2
