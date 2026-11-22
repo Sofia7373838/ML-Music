@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Recommender</title>
+<meta name="description" content="Encuentra canciones que suenan parecido a la que te gusta.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%237c6cff'/%3E%3Cpath d='M26 44a6 6 0 1 1-4-5.66V18l20-4v22a6 6 0 1 1-4-5.66V20.9l-12 2.4Z' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0c0d12;
+    --surface: #15171f;
+    --surface-2: #1c1f2a;
+    --surface-3: #252938;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #f2f3f7;
+    --text-2: #a9adbd;
+    --text-3: #747a8f;
+    --accent: #8b7cff;
+    --accent-2: #2dd4bf;
+    --accent-soft: rgba(139, 124, 255, 0.14);
+    --danger: #ff6b7a;
+    --danger-soft: rgba(255, 107, 122, 0.12);
+    --ok: #3ddc97;
+    --warn: #f5b84b;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(139, 124, 255, 0.16), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, rgba(45, 212, 191, 0.08), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button, input, select { font: inherit; color: inherit; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- Header ---------- */
+  header.top {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(14px);
+    background: rgba(12, 13, 18, 0.72);
+    border-bottom: 1px solid var(--border);
+  }
+  .top .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand-mark {
+    width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), #5b8cff);
+    box-shadow: 0 4px 14px rgba(139, 124, 255, 0.4);
+  }
+  .brand small { display: block; font-weight: 500; color: var(--text-3); font-size: 12px; line-height: 1; }
+  .spacer { flex: 1; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border);
+    font-size: 13px; color: var(--text-2); white-space: nowrap;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 3px rgba(245, 184, 75, 0.18); }
+  .status.ok .dot { background: var(--ok); box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.18); }
+  .status.err .dot { background: var(--danger); box-shadow: 0 0 0 3px rgba(255, 107, 122, 0.18); }
+  .docs-link {
+    font-size: 13px; color: var(--text-2); text-decoration: none; white-space: nowrap;
+    padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+  }
+  .docs-link:hover { color: var(--text); border-color: var(--border-strong); }
+
+  /* ---------- Hero / búsqueda ---------- */
+  .hero { padding: 44px 0 28px; }
+  .hero h1 { margin: 0 0 6px; font-size: clamp(26px, 4vw, 38px); letter-spacing: -0.02em; line-height: 1.15; }
+  .hero p { margin: 0 0 22px; color: var(--text-2); max-width: 640px; }
+
+  .search { position: relative; max-width: 720px; }
+  .search-box {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 14px; padding: 0 14px; height: 54px;
+    box-shadow: var(--shadow); transition: border-color .15s, box-shadow .15s;
+  }
+  .search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow); }
+  .search-box svg { flex: none; color: var(--text-3); }
+  .search-box input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 16px; height: 100%; }
+  .search-box input::placeholder { color: var(--text-3); }
+  /* El navegador agrega su propio botón de borrar a type="search"; ya hay uno propio. */
+  .search-box input::-webkit-search-cancel-button,
+  .search-box input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+  .clear-btn {
+    border: 0; background: transparent; color: var(--text-3); cursor: pointer;
+    width: 30px; height: 30px; border-radius: 8px; display: none; place-items: center;
+  }
+  .clear-btn:hover { background: var(--surface-2); color: var(--text); }
+  .search.has-value .clear-btn { display: grid; }
+
+  .dropdown {
+    position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 30;
+    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55); padding: 6px; margin: 0; list-style: none;
+    max-height: 420px; overflow-y: auto;
+  }
+  .dropdown[hidden] { display: none; }
+  .option {
+    display: flex; align-items: center; gap: 12px; padding: 8px 10px;
+    border-radius: 10px; cursor: pointer;
+  }
+  .option[aria-selected="true"], .option:hover { background: var(--surface-2); }
+  .option .meta { flex: 1; min-width: 0; }
+  .option .title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .option .sub { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .option .pop { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+  .dropdown .note { padding: 12px; color: var(--text-2); font-size: 14px; }
+
+  /* ---------- Layout ---------- */
+  .layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 24px; align-items: start; padding-bottom: 60px; }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; position: sticky; top: 84px;
+  }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin: 0 0 14px; font-weight: 600; }
+  .control { padding: 14px 0; border-top: 1px solid var(--border); }
+  .control:first-of-type { border-top: 0; padding-top: 0; }
+  .control-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .control label, .control .label { font-weight: 600; font-size: 14px; }
+  .control .help { font-size: 12.5px; color: var(--text-3); margin: 4px 0 0; }
+  .value-pill {
+    font-size: 12.5px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums;
+  }
+  input[type="range"] { width: 100%; margin: 12px 0 2px; accent-color: var(--accent); }
+  input[type="range"]:disabled { opacity: 0.35; }
+  select {
+    width: 100%; margin-top: 10px; height: 38px; padding: 0 10px;
+    background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  }
+
+  .switch {
+    appearance: none; -webkit-appearance: none; flex: none; cursor: pointer;
+    width: 40px; height: 23px; border-radius: 999px; position: relative; margin: 0;
+    background: var(--surface-3); border: 1px solid var(--border-strong); transition: background .15s;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px;
+    border-radius: 50%; background: #fff; transition: transform .15s;
+  }
+  .switch:checked { background: var(--accent); border-color: var(--accent); }
+  .switch:checked::after { transform: translateX(17px); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 40px; padding: 0 16px; border-radius: var(--radius-sm); cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--surface-2); font-weight: 600; font-size: 14px;
+    transition: background .15s, border-color .15s, transform .05s;
+  }
+  .btn:hover { background: var(--surface-3); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #0c0d12; }
+  .btn.primary:hover { background: #9d90ff; }
+  .btn.block { width: 100%; margin-top: 16px; }
+  .btn.small { height: 32px; padding: 0 12px; font-size: 13px; }
+
+  /* ---------- Resultados ---------- */
+  .results { min-width: 0; }
+
+  .empty {
+    border: 1px dashed var(--border-strong); border-radius: var(--radius);
+    padding: 48px 24px; text-align: center; color: var(--text-2);
+  }
+  .empty h3 { color: var(--text); margin: 14px 0 6px; font-size: 18px; }
+  .empty p { margin: 0 auto; max-width: 420px; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .chip-btn {
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2);
+    padding: 6px 12px; border-radius: 999px; cursor: pointer; font-size: 13px;
+  }
+  .chip-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  .query-card {
+    display: flex; gap: 20px; align-items: center;
+    padding: 20px; border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(139, 124, 255, 0.16), rgba(45, 212, 191, 0.06)), var(--surface);
+    border: 1px solid var(--border-strong); margin-bottom: 18px;
+  }
+  .query-card .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 700; }
+  .query-card h2 { margin: 4px 0 2px; font-size: clamp(20px, 3vw, 28px); letter-spacing: -0.015em; line-height: 1.2; }
+  .query-card .artists { color: var(--text-2); font-size: 16px; }
+  .query-card .album { color: var(--text-3); font-size: 13px; margin-top: 2px; }
+  .query-card .tags { margin-top: 12px; }
+
+  .cover {
+    flex: none; display: grid; place-items: center; border-radius: 12px;
+    color: rgba(255, 255, 255, 0.92); font-weight: 800; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    width: 44px; height: 44px; font-size: 17px;
+  }
+  .cover.lg { width: 112px; height: 112px; font-size: 42px; border-radius: 14px; box-shadow: var(--shadow); }
+  .cover.md { width: 56px; height: 56px; font-size: 21px; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px;
+    border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--surface-3); color: var(--text-2); white-space: nowrap;
+  }
+  .tag.explicit { background: rgba(255, 255, 255, 0.85); color: #111; padding: 0 6px; border-radius: 4px; height: 18px; font-size: 11px; font-weight: 800; }
+  .tag.link { text-decoration: none; }
+  .tag.link:hover { color: var(--text); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .stat .k { font-size: 12px; color: var(--text-3); }
+  .stat .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .stat .d { font-size: 12px; color: var(--text-2); }
+
+  .list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 6px 2px 10px; }
+  .list-head h3 { margin: 0; font-size: 17px; }
+  .list-head span { color: var(--text-3); font-size: 13px; }
+
+  .recs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .rec {
+    display: grid; grid-template-columns: 28px 56px minmax(0, 1fr) auto; gap: 14px; align-items: center;
+    padding: 14px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border);
+    transition: border-color .15s, background .15s;
+    animation: rise .35s ease both;
+  }
+  .rec:hover { border-color: var(--border-strong); background: #181b24; }
+  .rank { color: var(--text-3); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .rec .title { font-weight: 650; font-size: 15.5px; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .rec .title span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rec .artist { color: var(--text-2); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .reason {
+    display: flex; gap: 8px; align-items: flex-start; margin-top: 8px;
+    font-size: 13.5px; color: var(--text); background: rgba(45, 212, 191, 0.08);
+    border: 1px solid rgba(45, 212, 191, 0.2); border-radius: 10px; padding: 7px 10px;
+  }
+  .reason svg { flex: none; color: var(--accent-2); margin-top: 2px; }
+  .metrics { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 10px; font-size: 12.5px; color: var(--text-2); }
+  .meter { display: inline-flex; align-items: center; gap: 8px; }
+  .bar { width: 90px; height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .bar.pop > i { background: var(--text-3); }
+  .meter b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 650; }
+  .rec-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+
+  /* ---------- Estados ---------- */
+  .alert {
+    display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 14px;
+    background: var(--danger-soft); border: 1px solid rgba(255, 107, 122, 0.35); margin-bottom: 18px;
+  }
+  .alert svg { flex: none; color: var(--danger); margin-top: 2px; }
+  .alert strong { display: block; }
+  .alert p { margin: 2px 0 10px; color: var(--text-2); font-size: 14px; }
+
+  .loading-note {
+    display: flex; align-items: center; gap: 10px; color: var(--text-2); font-size: 14px; margin: 0 2px 14px;
+  }
+  .spinner {
+    width: 18px; height: 18px; border-radius: 50%; flex: none;
+    border: 2px solid var(--surface-3); border-top-color: var(--accent); animation: spin .8s linear infinite;
+  }
+  .skeleton { background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 14px; border: 1px solid var(--border); }
+  .skeleton.query { height: 152px; margin-bottom: 18px; }
+  .skeleton.row { height: 112px; margin-bottom: 10px; }
+
+  footer { color: var(--text-3); font-size: 12.5px; padding: 0 0 40px; text-align: center; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* ---------- Responsivo ---------- */
+  @media (max-width: 900px) {
+    .brand small { display: none; }
+    .layout { grid-template-columns: 1fr; }
+    .panel { position: static; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 620px) {
+    .wrap { padding: 0 16px; }
+    .top .brand small, .docs-link span { display: none; }
+    .status { padding: 6px 10px; }
+    .status .status-text-long { display: none; }
+    .hero { padding: 28px 0 20px; }
+    .query-card { flex-direction: column; align-items: flex-start; }
+    .cover.lg { width: 88px; height: 88px; font-size: 34px; }
+    .rec { grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 14px; }
+    .rec .rank { display: none; }
+    .rec .cover.md { width: 44px; height: 44px; font-size: 17px; }
+    .rec-actions { grid-column: 1 / -1; flex-direction: row; }
+    .rec-actions .btn { flex: 1; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M9 18a3 3 0 1 1-2-2.83V5l12-2.5v12.33A3 3 0 1 1 17 12V6.9L9 8.6Z"/></svg>
+      </div>
+      <div>Music Recommender<small>Recomendación basada en contenido</small></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="status" id="status" role="status" title="Conectando con la API">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="status-text">Conectando…</span>
+    </div>
+    <a class="docs-link" href="docs" id="docs-link">API <span>docs</span> ↗</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Encuentra canciones que suenan parecido</h1>
+    <p>Elige una canción y el modelo busca otras con un perfil de audio similar (energía, ritmo, tono, voz…), sin importar el género o qué tan conocido es el artista.</p>
+
+    <div class="search" id="search">
+      <div class="search-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="search-input" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Busca una canción o artista, por ejemplo “Bad Bunny”"
+               role="combobox" aria-expanded="false" aria-controls="search-list" aria-autocomplete="list"
+               aria-label="Buscar canción o artista">
+        <button class="clear-btn" id="clear-btn" type="button" aria-label="Borrar búsqueda">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <ul class="dropdown" id="search-list" role="listbox" aria-label="Resultados de búsqueda" hidden></ul>
+    </div>
+  </section>
+
+  <div class="layout">
+    <aside class="panel" aria-labelledby="controls-title">
+      <h2 id="controls-title">Ajustes</h2>
+
+      <div class="control">
+        <div class="control-head">
+          <label for="k">Recomendaciones</label>
+          <span class="value-pill" id="k-value">10</span>
+        </div>
+        <input id="k" type="range" min="1" max="50" value="10" aria-describedby="k-help">
+        <p class="help" id="k-help">Cuántas canciones parecidas mostrar.</p>
+      </div>
+
+      <div class="control">
+        <div class="control-head">
+          <label for="discovery">Modo descubrimiento</label>
+          <input class="switch" id="discovery" type="checkbox" role="switch">
+        </div>
+        <p class="help">Solo canciones poco conocidas, para dar visibilidad a artistas pequeños.</p>
+        <div class="control-head" style="margin-top:10px">
+          <span class="label" style="font-weight:500;font-size:13px;color:var(--text-2)">Popularidad máxima</span>
+          <span class="value-pill" id="pop-value">30</span>
+        </div>
+        <input id="max-pop" type="range" min="0" max="100" value="30" disabled aria-label="Popularidad máxima">
+      </div>
+
+      <div class="control">
+        <div class="control-head">
+          <label for="explicit">Excluir contenido explícito</label>
+          <input class="switch" id="explicit" type="checkbox" role="switch">
+        </div>
+        <p class="help">Quita canciones marcadas con <span class="tag explicit" aria-label="explícita">E</span>.</p>
+      </div>
+
+      <div class="control">
+        <label for="per-artist">Máximo por artista</label>
+        <select id="per-artist">
+          <option value="1">1 canción</option>
+          <option value="2" selected>2 canciones</option>
+          <option value="3">3 canciones</option>
+          <option value="5">5 canciones</option>
+          <option value="">Sin límite</option>
+        </select>
+        <p class="help">Evita que un solo artista llene la lista.</p>
+      </div>
+
+      <button class="btn primary block" id="run-btn" type="button" disabled>Recomendar</button>
+    </aside>
+
+    <section class="results" id="results" aria-live="polite" aria-busy="false">
+      <div class="empty">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <h3>Empieza con una canción</h3>
+        <p>Búscala arriba por nombre o artista. También puedes probar con alguno de estos:</p>
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="wrap">
+  Modelo de similitud sobre características de audio · Datos: Spotify Tracks Dataset (Kaggle), uso académico
+</footer>
+
+<noscript><p class="wrap">Esta página necesita JavaScript para consultar la API.</p></noscript>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- API ----------
+  // Rutas relativas a la ubicación de la página: funcionan en localhost:8000 y en cualquier
+  // etapa de API Gateway. Si la página se abre sin "/" final (p. ej. ".../prod"), se agrega
+  // para que "health" no apunte a la ruta equivocada.
+  const BASE = location.origin + (location.pathname.endsWith("/") ? location.pathname : location.pathname + "/");
+  const apiUrl = (path, params) => {
+    const url = new URL(path, BASE);
+    for (const [key, value] of Object.entries(params || {})) url.searchParams.set(key, value);
+    return url;
+  };
+
+  class ApiError extends Error {
+    constructor(status, message) { super(message); this.status = status; }
+  }
+
+  function describeError(status, data) {
+    const detail = data && data.detail;
+    if (status === 404) return typeof detail === "string" ? detail : "No se encontró lo que buscabas.";
+    if (status === 422 && Array.isArray(detail)) {
+      return detail.map((d) => `${(d.loc || []).slice(1).join(".") || "petición"}: ${d.msg}`).join(" · ");
+    }
+    if (status === 503 || status === 504) return "La API tardó demasiado en responder. Si acaba de arrancar, inténtalo de nuevo en unos segundos.";
+    if (status >= 500) return `El servidor tuvo un problema (error ${status}). Inténtalo de nuevo.`;
+    return typeof detail === "string" ? detail : `Error ${status}.`;
+  }
+
+  async function request(path, { params, body, signal } = {}) {
+    let response;
+    try {
+      response = await fetch(apiUrl(path, params), {
+        method: body ? "POST" : "GET",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        signal,
+      });
+    } catch (error) {
+      if (error.name === "AbortError") throw error;
+      throw new ApiError(0, "No se pudo conectar con la API. Revisa tu conexión e inténtalo de nuevo.");
+    }
+    let data = null;
+    try { data = await response.json(); } catch { /* respuesta sin JSON */ }
+    if (!response.ok) throw new ApiError(response.status, describeError(response.status, data));
+    return data;
+  }
+
+  // ---------- Utilidades de DOM ----------
+  // Todo el texto que viene de la API se inserta con textContent, nunca como HTML.
+  function el(tag, attrs, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs || {})) {
+      if (value === null || value === undefined || value === false) continue;
+      if (key === "class") node.className = value;
+      else if (key === "style") node.style.cssText = value;
+      else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? "" : value);
+    }
+    for (const child of children.flat()) {
+      if (child === null || child === undefined || child === false) continue;
+      node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    }
+    return node;
+  }
+  const svg = (markup, size = 16) => {
+    const wrapper = document.createElement("span");
+    wrapper.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`;
+    return wrapper.firstChild;
+  };
+  const ICONS = {
+    spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>',
+    alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/>',
+    loop: '<path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+    external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  };
+
+  const fmt = new Intl.NumberFormat("es-MX");
+  const pct = (value) => `${(Math.max(0, value) * 100).toFixed(1)}%`;
+
+  // Portada generada: el color base depende del género (mismo género = misma familia de
+  // color) y el segundo tono de la canción. Así se ve de un vistazo qué tan variada es la lista.
+  function hash(text) {
+    let h = 0;
+    for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function cover(song, size = "") {
+    const hue = hash(song.track_genre || "") % 360;
+    const hue2 = (hue + 30 + (hash(song.track_id || "") % 60)) % 360;
+    const initial = (song.track_name || "?").trim().charAt(0).toUpperCase() || "♪";
+    return el("div", {
+      class: `cover ${size}`,
+      style: `background: linear-gradient(135deg, hsl(${hue} 70% 56%), hsl(${hue2} 65% 36%))`,
+      "aria-hidden": "true",
+    }, initial);
+  }
+
+  function tags(song, { withLink = false } = {}) {
+    return el("div", { class: "tags" },
+      el("span", { class: "tag" }, song.track_genre),
+      song.explicit ? el("span", { class: "tag explicit", title: "Contenido explícito", "aria-label": "explícita" }, "E") : null,
+      withLink ? el("a", {
+        class: "tag link", href: `https://open.spotify.com/track/${encodeURIComponent(song.track_id)}`,
+        target: "_blank", rel: "noopener noreferrer",
+      }, "Abrir en Spotify", svg(ICONS.external, 12)) : null,
+    );
+  }
+
+  function meter(label, value, text, extraClass = "") {
+    return el("span", { class: "meter" },
+      label,
+      el("span", { class: `bar ${extraClass}`, role: "img", "aria-label": `${label} ${text}` },
+        el("i", { style: `width:${Math.max(0, Math.min(1, value)) * 100}%` })),
+      el("b", null, text),
+    );
+  }
+
+  // ---------- Estado ----------
+  const $ = (id) => document.getElementById(id);
+  const state = { query: null, requestId: 0 };
+  const controls = {
+    k: $("k"), discovery: $("discovery"), maxPop: $("max-pop"),
+    explicit: $("explicit"), perArtist: $("per-artist"), run: $("run-btn"),
+  };
+  const results = $("results");
+
+  function readControls() {
+    return {
+      k: Number(controls.k.value),
+      max_popularity: controls.discovery.checked ? Number(controls.maxPop.value) : null,
+      exclude_explicit: controls.explicit.checked,
+      max_per_artist: controls.perArtist.value === "" ? null : Number(controls.perArtist.value),
+    };
+  }
+
+  // ---------- Estado de la API (header) ----------
+  async function loadHealth() {
+    const status = $("status");
+    const text = $("status-text");
+    try {
+      const health = await request("health");
+      status.className = "status ok";
+      text.replaceChildren(
+        el("span", null, health.model),
+        el("span", { class: "status-text-long" }, ` · ${fmt.format(health.songs)} canciones`),
+      );
+      const trained = health.trained_at ? new Date(health.trained_at).toLocaleString("es-MX") : "fecha desconocida";
+      status.title = `Modelo ${health.model} · ${fmt.format(health.songs)} canciones · entrenado ${trained}`;
+    } catch (error) {
+      status.className = "status err";
+      text.textContent = "API sin conexión";
+      status.title = error.message;
+    }
+  }
+
+  // ---------- Buscador ----------
+  const searchWrap = $("search");
+  const input = $("search-input");
+  const list = $("search-list");
+  let options = [];
+  let active = -1;
+  let searchTimer = 0;
+  let searchAbort = null;
+
+  function openList() { list.hidden = false; input.setAttribute("aria-expanded", "true"); }
+  function closeList() {
+    list.hidden = true; input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant"); active = -1;
+  }
+  function setActive(index) {
+    const items = list.querySelectorAll(".option");
+    items.forEach((item, i) => item.setAttribute("aria-selected", String(i === index)));
+    active = index;
+    const item = items[index];
+    if (item) {
+      input.setAttribute("aria-activedescendant", item.id);
+      // Desplaza solo la lista (scrollIntoView también movería la página y el header fijo
+      // taparía la opción).
+      const bottom = item.offsetTop + item.offsetHeight;
+      if (item.offsetTop < list.scrollTop) list.scrollTop = item.offsetTop;
+      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+    }
+  }
+  function note(text) {
+    list.replaceChildren(el("li", { class: "note", role: "option", "aria-disabled": "true" }, text));
+    options = []; openList();
+  }
+
+  function renderOptions(songs, query) {
+    options = songs;
+    if (!songs.length) return note(`Sin resultados para “${query}”.`);
+    list.replaceChildren(...songs.map((song, i) => el("li", {
+      class: "option", role: "option", id: `opt-${i}`, "aria-selected": "false",
+      onmousedown: (event) => event.preventDefault(),
+      onclick: () => selectSong(song),
+      onmousemove: () => active !== i && setActive(i),
+    },
+      cover(song),
+      el("div", { class: "meta" },
+        el("div", { class: "title" }, song.track_name),
+        el("div", { class: "sub" }, `${song.artists} · ${song.track_genre}`),
+      ),
+      song.explicit ? el("span", { class: "tag explicit", "aria-label": "explícita" }, "E") : null,
+      el("span", { class: "pop" }, `pop ${song.popularity}`),
+    )));
+    openList();
+    setActive(0);
+  }
+
+  async function search(query) {
+    if (searchAbort) searchAbort.abort();
+    searchAbort = new AbortController();
+    note("Buscando…");
+    try {
+      const songs = await request("songs/search", { params: { q: query, limit: 8 }, signal: searchAbort.signal });
+      if (input.value.trim() === query) renderOptions(songs, query);
+    } catch (error) {
+      if (error.name !== "AbortError") note(error.message);
+    }
+  }
+
+  input.addEventListener("input", () => {
+    const query = input.value.trim();
+    searchWrap.classList.toggle("has-value", input.value.length > 0);
+    clearTimeout(searchTimer);
+    if (query.length < 2) { closeList(); return; }
+    searchTimer = setTimeout(() => search(query), 300);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" && options.length) {
+      event.preventDefault();
+      if (list.hidden) openList();
+      setActive((active + 1) % options.length);
+    } else if (event.key === "ArrowUp" && options.length) {
+      event.preventDefault();
+      setActive((active - 1 + options.length) % options.length);
+    } else if (event.key === "Enter" && !list.hidden && options[active]) {
+      event.preventDefault();
+      selectSong(options[active]);
+    } else if (event.key === "Escape") {
+      closeList();
+    }
+  });
+  input.addEventListener("focus", () => { if (options.length && input.value.trim().length >= 2) openList(); });
+  input.addEventListener("blur", () => setTimeout(closeList, 120));
+  $("clear-btn").addEventListener("click", () => {
+    input.value = ""; searchWrap.classList.remove("has-value"); options = []; closeList(); input.focus();
+  });
+
+  // ---------- Recomendaciones ----------
+  function selectSong(song, { scroll = false } = {}) {
+    state.query = song;
+    input.value = `${song.track_name} — ${song.artists}`;
+    searchWrap.classList.add("has-value");
+    closeList();
+    controls.run.disabled = false;
+    if (location.hash !== `#track=${song.track_id}`) history.pushState(null, "", `#track=${encodeURIComponent(song.track_id)}`);
+    // Lleva a los resultados (en celular quedan debajo de los ajustes), sin quedar bajo el header.
+    if (scroll) window.scrollTo({ top: results.getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });
+    recommend();
+  }
+
+  function showLoading() {
+    results.setAttribute("aria-busy", "true");
+    const noteEl = el("div", { class: "loading-note" }, el("span", { class: "spinner", "aria-hidden": "true" }), "Buscando canciones parecidas…");
+    results.replaceChildren(noteEl, el("div", { class: "skeleton query" }),
+      ...Array.from({ length: 4 }, () => el("div", { class: "skeleton row" })));
+    // Arranque en frío de Lambda: la primera consulta puede tardar varios segundos.
+    return setTimeout(() => {
+      noteEl.lastChild.textContent = "La API está arrancando (primera consulta en un rato). Esto puede tardar unos segundos…";
+    }, 1800);
+  }
+
+  function showError(error) {
+    const retry = el("button", { class: "btn small", type: "button", onclick: recommend }, "Reintentar");
+    const title = error.status === 404 ? "No encontramos esa canción" : error.status === 422 ? "Algún ajuste no es válido" : "No se pudieron obtener recomendaciones";
+    results.replaceChildren(el("div", { class: "alert", role: "alert" },
+      svg(ICONS.alert, 20),
+      el("div", null, el("strong", null, title), el("p", null, error.message), error.status === 404 ? null : retry),
+    ));
+  }
+
+  async function recommend() {
+    if (!state.query) return;
+    const id = ++state.requestId;
+    const params = readControls();
+    controls.run.disabled = true;
+    const slowTimer = showLoading();
+    try {
+      const data = await request("recommendations", { body: { track_id: state.query.track_id, ...params } });
+      if (id === state.requestId) renderResults(data, params);
+    } catch (error) {
+      if (id === state.requestId) showError(error);
+    } finally {
+      clearTimeout(slowTimer);
+      if (id === state.requestId) { controls.run.disabled = false; results.setAttribute("aria-busy", "false"); }
+    }
+  }
+
+  function renderStats(query, recs) {
+    const avg = (values) => values.reduce((a, b) => a + b, 0) / (values.length || 1);
+    const similarity = avg(recs.map((r) => r.similarity));
+    const popularity = avg(recs.map((r) => r.popularity));
+    const gap = popularity - query.popularity;
+    const genres = new Set(recs.map((r) => r.track_genre)).size;
+    const artists = new Set(recs.flatMap((r) => r.artists.split(";").map((a) => a.trim().toLowerCase()))).size;
+    const stat = (k, v, d) => el("div", { class: "stat" }, el("div", { class: "k" }, k), el("div", { class: "v" }, v), el("div", { class: "d" }, d));
+    return el("div", { class: "stats" },
+      stat("Similitud promedio", pct(similarity), "perfil de audio"),
+      stat("Popularidad promedio", Math.round(popularity), `${gap >= 0 ? "+" : ""}${Math.round(gap)} vs. la canción base`),
+      stat("Géneros distintos", genres, `en ${recs.length} canciones`),
+      stat("Artistas distintos", artists, recs.some((r) => r.explicit) ? `${recs.filter((r) => r.explicit).length} explícitas` : "ninguna explícita"),
+    );
+  }
+
+  function renderRec(rec, index) {
+    return el("li", { class: "rec", style: `animation-delay:${Math.min(index, 12) * 35}ms` },
+      el("div", { class: "rank" }, index + 1),
+      cover(rec, "md"),
+      el("div", { style: "min-width:0" },
+        el("div", { class: "title" }, el("span", null, rec.track_name),
+          rec.explicit ? el("span", { class: "tag explicit", title: "Contenido explícito", "aria-label": "explícita" }, "E") : null),
+        el("div", { class: "artist" }, rec.artists),
+        el("div", { class: "reason" }, svg(ICONS.spark, 14), el("span", null, rec.reason)),
+        el("div", { class: "metrics" },
+          meter("Similitud", rec.similarity, pct(rec.similarity)),
+          meter("Popularidad", rec.popularity / 100, String(rec.popularity), "pop"),
+          el("span", { class: "tag" }, rec.track_genre),
+        ),
+      ),
+      el("div", { class: "rec-actions" },
+        el("button", { class: "btn small", type: "button", title: "Buscar canciones parecidas a esta",
+          onclick: () => selectSong(rec, { scroll: true }) }, svg(ICONS.loop, 14), "Usar como base"),
+        el("a", { class: "btn small", href: `https://open.spotify.com/track/${encodeURIComponent(rec.track_id)}`,
+          target: "_blank", rel: "noopener noreferrer", style: "text-decoration:none" }, "Spotify", svg(ICONS.external, 12)),
+      ),
+    );
+  }
+
+  function renderResults(data, params) {
+    const { query, recommendations: recs } = data;
+    const filters = [
+      params.max_popularity !== null ? `popularidad ≤ ${params.max_popularity}` : null,
+      params.exclude_explicit ? "sin explícitas" : null,
+      params.max_per_artist !== null ? `máx. ${params.max_per_artist} por artista` : "sin límite por artista",
+    ].filter(Boolean).join(" · ");
+
+    const queryCard = el("div", { class: "query-card" },
+      cover(query, "lg"),
+      el("div", { style: "min-width:0" },
+        el("div", { class: "eyebrow" }, "Canción base"),
+        el("h2", null, query.track_name),
+        el("div", { class: "artists" }, query.artists),
+        el("div", { class: "album" }, `${query.album_name} · popularidad ${query.popularity}`),
+        tags(query, { withLink: true }),
+      ),
+    );
+
+    if (!recs.length) {
+      results.replaceChildren(queryCard, el("div", { class: "empty" },
+        el("h3", null, "Ninguna canción cumple los filtros"),
+        el("p", null, "Prueba subir la popularidad máxima del modo descubrimiento o quitar algún filtro."),
+      ));
+      return;
+    }
+
+    results.replaceChildren(
+      queryCard,
+      renderStats(query, recs),
+      el("div", { class: "list-head" },
+        el("h3", null, `${recs.length} canciones parecidas`),
+        el("span", null, `${data.model} · ${filters}`),
+      ),
+      el("ol", { class: "recs" }, recs.map(renderRec)),
+    );
+  }
+
+  // ---------- Controles ----------
+  let controlTimer = 0;
+  const rerun = () => { clearTimeout(controlTimer); if (state.query) controlTimer = setTimeout(recommend, 250); };
+
+  controls.k.addEventListener("input", () => { $("k-value").textContent = controls.k.value; });
+  controls.k.addEventListener("change", rerun);
+  controls.maxPop.addEventListener("input", () => { $("pop-value").textContent = controls.maxPop.value; });
+  controls.maxPop.addEventListener("change", rerun);
+  controls.discovery.addEventListener("change", () => { controls.maxPop.disabled = !controls.discovery.checked; rerun(); });
+  controls.explicit.addEventListener("change", rerun);
+  controls.perArtist.addEventListener("change", rerun);
+  controls.run.addEventListener("click", recommend);
+
+  // ---------- Sugerencias y enlace compartible (#track=<id>) ----------
+  for (const term of ["Bad Bunny", "Queen", "Daft Punk", "Beethoven", "Metallica"]) {
+    $("suggestions").append(el("button", { class: "chip-btn", type: "button", onclick: () => {
+      input.value = term; input.focus(); input.dispatchEvent(new Event("input"));
+    } }, term));
+  }
+
+  async function loadFromHash() {
+    const match = location.hash.match(/^#track=(.+)$/);
+    if (!match) return;
+    const trackId = decodeURIComponent(match[1]);
+    if (state.query && state.query.track_id === trackId) return;
+    try {
+      const song = await request(`songs/${encodeURIComponent(trackId)}`);
+      selectSong(song);
+    } catch (error) {
+      showError(error);
+    }
+  }
+  window.addEventListener("popstate", loadFromHash);
+
+  $("docs-link").href = new URL("docs", BASE).href;
+  loadHealth();
+  loadFromHash();
+})();
+</script>
+</body>
+</html>

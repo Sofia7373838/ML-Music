@@ -14,6 +14,28 @@ def client(song_recommender):
     app.dependency_overrides.clear()
 
 
+def test_index_serves_the_web_page(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "<title>Music Recommender</title>" in response.text
+
+
+def test_index_answers_head_requests(client):
+    # Algunas herramientas de monitoreo revisan si la página existe con HEAD.
+    assert client.head("/").status_code == 200
+
+
+def test_index_does_not_need_the_model():
+    # Sin dependency_overrides: si la ruta pidiera el modelo, intentaría cargarlo de disco.
+    assert TestClient(app).get("/").status_code == 200
+
+
+def test_index_is_not_in_the_api_docs(client):
+    assert "/" not in client.get("/openapi.json").json()["paths"]
+
+
 def test_health(client):
     body = client.get("/health").json()
 

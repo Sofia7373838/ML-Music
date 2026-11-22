@@ -1,9 +1,11 @@
 """API REST del recomendador. En local: `uvicorn api.main:app --reload`."""
 
 import time
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from api.model_store import get_recommender
@@ -18,6 +20,8 @@ app = FastAPI(
 )
 
 Recommender = Annotated[SongRecommender, Depends(get_recommender)]
+
+INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 
 
 class Song(BaseModel):
@@ -69,6 +73,16 @@ class Health(BaseModel):
     model: str
     songs: int
     trained_at: str | None
+
+
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+def index() -> FileResponse:
+    """Interfaz web. Se sirve desde la misma API para no necesitar CORS ni otro servicio.
+
+    No depende del modelo: la página carga aunque la Lambda todavía lo esté descargando.
+    `no-cache` hace que el navegador pida la versión nueva después de cada despliegue.
+    """
+    return FileResponse(INDEX_HTML, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/health")

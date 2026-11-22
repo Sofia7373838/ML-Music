@@ -3,3 +3,4 @@
 !requirements-api.txt
 !src/recommender/*.py
 !api/*.py
+!api/static/*

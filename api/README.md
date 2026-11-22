@@ -9,6 +9,43 @@ HTTP API de API Gateway; en local corre con uvicorn.
 | `model_store.py` | Carga el modelo una sola vez por contenedor, desde S3 o desde disco |
 | `monitoring.py` | Escribe un log estructurado por predicción (CloudWatch EMF) |
 | `handler.py` | Punto de entrada de Lambda (`api.handler.handler`) |
+| `static/index.html` | Interfaz web (HTML, CSS y JavaScript sin librerías) que se sirve en `/` |
+
+## Interfaz web
+
+Al abrir la raíz de la API (`http://localhost:8000/` en local, o la `api_url` de Terraform en
+AWS) aparece una página para usar el recomendador sin escribir peticiones a mano:
+
+- **Buscador** con sugerencias mientras escribes (consulta `/songs/search` 300 ms después de
+  la última tecla) y navegación con flechas, Enter y Esc.
+- **Ajustes** con los filtros del análisis ético: número de recomendaciones, modo
+  descubrimiento (`max_popularity`), excluir contenido explícito y máximo por artista. Al
+  cambiar uno, la lista se vuelve a pedir sola.
+- **Resultados**: la canción base, un resumen (similitud y popularidad promedio, géneros y
+  artistas distintos, explícitas) y cada recomendación con su explicación (`reason`), barras de
+  similitud y popularidad, y botones para **usarla como base** o abrirla en Spotify.
+- **Estados**: aviso de arranque en frío si la API tarda, mensajes claros para 404, 422 y
+  errores de red, y estado del modelo en el encabezado (`/health`).
+- **Enlace compartible**: la URL guarda la canción (`/#track=<track_id>`); al abrirla se
+  cargan sus recomendaciones.
+
+Decisiones de diseño:
+
+- **Se sirve desde la misma API**, no desde S3 u otro servicio: no hace falta CORS ni
+  infraestructura nueva, y se despliega junto con la imagen de Docker.
+- **Rutas relativas** (`health`, `songs/search`, `recommendations`) calculadas a partir de
+  la URL de la página: funciona en `localhost` y en cualquier etapa de API Gateway.
+- **Sin dependencias**: un solo archivo, sin React ni Node, sin pasos de compilación.
+- Todo el texto que llega de la API se inserta con `textContent`, nunca como HTML, para que
+  un nombre de canción no pueda inyectar código en la página.
+- Las portadas son degradados generados: el color base depende del género, así se ve de un
+  vistazo qué tan variada es la lista.
+
+La ruta `/` no aparece en `/docs` (`include_in_schema=False`) y no carga el modelo: la página
+abre aunque la Lambda todavía lo esté descargando.
+
+Si agregas archivos a `static/`, ya quedan incluidos en la imagen (`.dockerignore` permite
+`api/static/*`) y en la huella con la que Terraform decide reconstruirla.
 
 ## Endpoints
 
@@ -16,6 +53,7 @@ La documentación interactiva queda en `/docs` (Swagger) y `/redoc`.
 
 | Método | Ruta | Qué hace |
 | --- | --- | --- |
+| `GET` | `/` | Interfaz web (ver arriba) |
 | `GET` | `/health` | Estado, modelo cargado, número de canciones y fecha de entrenamiento |
 | `GET` | `/songs/search?q=<texto>&limit=10` | Busca por nombre o artista; las más populares primero |
 | `GET` | `/songs/{track_id}` | Datos de una canción |

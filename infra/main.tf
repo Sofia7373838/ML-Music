@@ -18,6 +18,7 @@ locals {
     ["Dockerfile", ".dockerignore", "requirements.txt", "requirements-api.txt"],
     tolist(fileset(local.repo_root, "src/recommender/*.py")),
     tolist(fileset(local.repo_root, "api/*.py")),
+    tolist(fileset(local.repo_root, "api/static/*")),
   ))
   image_tag = substr(sha1(join("", [
     for f in local.image_files : filesha1("${local.repo_root}/${f}")
