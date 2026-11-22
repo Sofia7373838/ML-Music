@@ -26,7 +26,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     # Sin `environment:` a propósito: cambiaría el claim `sub` del token OIDC y el rol
-    # de base.yaml solo confía en `repo:<owner>/<repo>:ref:refs/heads/main`.
+    # de infra/github.tf solo confía en `repo:<owner>/<repo>:ref:refs/heads/main`.
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}

@@ -5,27 +5,23 @@
 | Archivo | ¿En Git? | Qué es |
 | --- | --- | --- |
 | `recommender.joblib` | No (`*.joblib` en `.gitignore`), ~10 MB | `SongRecommender` completo: preprocesador ajustado, modelo entrenado y catálogo de canciones |
-| `metrics.json` | Sí | Fecha, número de canciones, modelo elegido, K, semilla, versiones de las librerías y las métricas de los tres modelos |
+| `metrics.json` | No (`.gitignore`) | Fecha, número de canciones, modelo elegido, K, semilla, versiones de las librerías y las métricas de los tres modelos |
 
-`metrics.json` sí se sube para dejar registro de qué modelo se eligió y por qué. El artefacto
-se versiona en S3, no en Git.
+Los dos se versionan en S3, no en Git: Terraform los sube al bucket del proyecto junto con
+cada versión del modelo, así queda registro de qué modelo se eligió y con qué métricas.
 
 ## Publicar una versión del modelo
 
-```bash
-aws s3 cp models/recommender.joblib s3://<bucket>/models/recommender.joblib
-aws s3 cp models/metrics.json s3://<bucket>/models/metrics.json
-```
-
-El bucket tiene versionado: cada `cp` crea una versión nueva y las anteriores se conservan 90
-días. La Lambda carga el modelo al arrancar, así que para que tome la versión nueva hay que
-forzar contenedores nuevos (por ejemplo, volver a desplegar o cambiar cualquier variable de
-entorno):
+Después de reentrenar, desde `infra/`:
 
 ```bash
-aws lambda update-function-configuration --function-name music-recommender-api \
-  --description "modelo $(date +%Y-%m-%d)"
+terraform apply
 ```
+
+Terraform detecta que `recommender.joblib` cambió (compara su huella MD5), lo sube a S3 y
+actualiza la variable `MODEL_VERSION` de la Lambda. La Lambda carga el modelo una sola vez
+por contenedor; al cambiar esa variable, AWS arranca contenedores nuevos que cargan la versión
+nueva. El bucket tiene versionado: las versiones anteriores se conservan 90 días.
 
 Para regresar a una versión anterior:
 
@@ -34,6 +30,10 @@ aws s3api list-object-versions --bucket <bucket> --prefix models/recommender.job
 aws s3api copy-object --bucket <bucket> --key models/recommender.joblib \
   --copy-source "<bucket>/models/recommender.joblib?versionId=<id>"
 ```
+
+Ojo: el siguiente `terraform apply` vuelve a subir el modelo de tu carpeta `models/`. Para
+que el regreso sea permanente, reentrena con la versión de código anterior o reemplaza tu
+archivo local por el de esa versión.
 
 ## Compatibilidad
 

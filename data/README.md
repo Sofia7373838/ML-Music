@@ -12,8 +12,9 @@ Ninguno de los CSV se sube a Git (`.gitignore`); solo se versionan las carpetas 
 1. Entra a <https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset>.
 2. Descarga y descomprime `dataset.csv` en `data/raw/`.
 
-Para compartirlo con el equipo y con SageMaker, súbelo al bucket del proyecto (lo crea
-`infra/base.yaml`; el bucket tiene versionado):
+Para compartirlo con el equipo y con SageMaker, `terraform apply` (en `infra/`) los sube al
+bucket del proyecto si existen en tu carpeta. También se pueden subir a mano (el bucket tiene
+versionado):
 
 ```bash
 aws s3 cp data/raw/dataset.csv s3://<bucket>/data/raw/dataset.csv

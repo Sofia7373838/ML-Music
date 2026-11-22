@@ -139,4 +139,4 @@ Además el log incluye `model`, `track_id`, `k`, los filtros (`max_popularity`,
 `exclude_explicit`, `max_per_artist`) y `recommended_ids`, que el dashboard usa para detectar
 *hubs* (canciones que salen en demasiadas listas). **No se registra ningún dato personal** (ni
 IP, ni usuario, ni encabezados): solo canciones, filtros, el resultado y el tiempo de respuesta. El dashboard y las alarmas que usan estas métricas están en
-[`infra/app.yaml`](../infra/app.yaml).
+[`infra/monitoring.tf`](../infra/monitoring.tf).

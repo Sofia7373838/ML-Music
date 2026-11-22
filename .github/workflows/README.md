@@ -32,7 +32,8 @@ merge a main ─> CI ✔ ─> credenciales temporales (OIDC) ─> docker build/p
   `aws lambda update-function-code --image-uri <repo>:<sha-anterior>`.
 - **No corre hasta que haya infraestructura**: el job se salta mientras la variable
   `AWS_ROLE_ARN` no exista. Las variables necesarias están en
-  [`infra/README.md`](../../infra/README.md#desplegar-por-primera-vez).
+  [`infra/README.md`](../../infra/README.md#desplegar); Terraform las imprime con
+  `terraform output github_variables`.
 - **Despliegues en orden**: `concurrency: cd` evita que dos despliegues se pisen.
 - El job no usa `environment:` a propósito: eso cambiaría el claim `sub` del token y el rol
   lo rechazaría.

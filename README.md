@@ -60,6 +60,10 @@ GitHub Actions ──(OIDC)──> ECR ──> Lambda (FastAPI + Mangum) <──
                                 CloudWatch (dashboard + alarmas) ──> SNS (correo)
 ```
 
+Toda la infraestructura está como código en Terraform (`infra/`): un `terraform apply` la crea
+completa, sube el modelo y despliega la API. Para replicar el proyecto en otra cuenta solo
+hacen falta credenciales de AWS (ver [`infra/README.md`](infra/README.md)).
+
 ## Estructura
 
 Cada carpeta tiene su propio README con el detalle de esa sección.
@@ -68,7 +72,7 @@ Cada carpeta tiene su propio README con el detalle de esa sección.
 .github/workflows/   CI (ruff, pytest, build de Docker) y CD a AWS      → README
 api/                 API de inferencia (FastAPI) y logs de monitoreo    → README
 data/                Dataset original y limpio (no se suben a Git)      → README
-infra/               Plantillas de CloudFormation para AWS              → README
+infra/               Infraestructura en AWS con Terraform               → README
 models/              Artefacto entrenado y reporte de métricas          → README
 notebooks/           Análisis exploratorio y comparación de modelos     → README
 src/recommender/     Carga, preprocesamiento, modelos y entrenamiento   → README
@@ -176,7 +180,7 @@ consultada, las recomendadas, los filtros y la latencia (hay una prueba que lo g
 - [x] Pruebas
 - [x] API de inferencia
 - [x] Mitigaciones del análisis ético en el código (filtros, tope por artista, explicación, métricas por género)
-- [ ] Infraestructura en AWS (plantillas listas en `infra/`, falta desplegar)
+- [ ] Infraestructura en AWS (Terraform listo en `infra/`, falta `terraform apply`)
 - [ ] CD (workflow listo, falta configurar las variables del repositorio)
-- [ ] Monitoreo (dashboard y alarmas en `infra/app.yaml`, falta desplegar)
+- [ ] Monitoreo (dashboard y alarmas en `infra/monitoring.tf`, falta desplegar)
 - [ ] Documentación: reporte PDF y póster (borradores fuera del repositorio, falta agregar resultados y capturas de AWS)
