@@ -42,3 +42,15 @@ Thumbs.db
 
 models/recommender.joblib
 models/metrics.json
+
+# Terraform
+# .terraform/ tiene los proveedores descargados (cientos de MB).
+# El estado (*.tfstate) describe la infraestructura real y puede tener datos de la cuenta.
+# terraform.tfvars tiene los valores de cada quien; el .example sí se sube.
+# .terraform.lock.hcl SÍ se sube: fija la versión del proveedor para todo el equipo.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log

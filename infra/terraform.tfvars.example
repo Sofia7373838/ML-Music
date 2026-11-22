@@ -1,0 +1,21 @@
+# Copia este archivo como terraform.tfvars y ajusta lo que necesites.
+# terraform.tfvars no se sube a Git (puede tener correos y números de cuenta).
+# Cualquier variable que no pongas usa su valor por omisión (ver variables.tf).
+#
+# AWS Academy (Learner Lab) no permite crear roles de IAM, proveedores OIDC ni
+# presupuestos: ahí usa use_lab_role = true, github_repo = "" y budget_email = "".
+
+region       = "us-east-1"
+project_name = "music-recommender"
+
+# true en Learner Lab: la Lambda usa el rol LabRole que ya existe.
+use_lab_role = false
+
+# Repositorio (owner/nombre) que puede desplegar con el CD. Vacío = sin CD (Learner Lab).
+github_repo = ""
+# false si tu cuenta ya tiene el proveedor OIDC de GitHub de otro proyecto.
+create_github_oidc_provider = true
+
+# Avisos por correo. Vacío = sin aviso. Learner Lab: budget_email debe quedar vacío.
+alarm_email  = ""
+budget_email = ""
