@@ -180,7 +180,8 @@ consultada, las recomendadas, los filtros y la latencia (hay una prueba que lo g
 - [x] Pruebas
 - [x] API de inferencia
 - [x] Mitigaciones del análisis ético en el código (filtros, tope por artista, explicación, métricas por género)
-- [ ] Infraestructura en AWS (Terraform listo en `infra/`, falta `terraform apply`)
-- [ ] CD (workflow listo, falta configurar las variables del repositorio)
-- [ ] Monitoreo (dashboard y alarmas en `infra/monitoring.tf`, falta desplegar)
+- [x] Infraestructura en AWS (desplegada con Terraform en `us-east-1`, con un usuario de IAM de permisos mínimos)
+- [x] Interfaz web (`api/static/index.html`, servida en `/` desde la misma API)
+- [x] Monitoreo (dashboard y alarmas de `infra/monitoring.tf` desplegados)
+- [ ] CD (workflow y rol OIDC listos, falta crear en GitHub las variables de `terraform output github_variables`)
 - [ ] Documentación: reporte PDF y póster (borradores fuera del repositorio, falta agregar resultados y capturas de AWS)
