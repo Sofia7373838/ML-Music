@@ -52,6 +52,22 @@ variable "github_repo" {
   }
 }
 
+variable "github_oidc_subject_prefix" {
+  description = <<-EOT
+    Solo si el repositorio usa sujetos inmutables en sus tokens OIDC (incluyen los IDs de la
+    cuenta y del repositorio). Se obtiene con:
+      gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix
+    Ejemplo: "repo:mi-usuario@123456/ML-Music@7890123". Vacío = solo el formato clásico.
+  EOT
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.github_oidc_subject_prefix == "" || startswith(var.github_oidc_subject_prefix, "repo:")
+    error_message = "Debe empezar con repo:, tal como lo regresa la API de GitHub."
+  }
+}
+
 variable "create_github_oidc_provider" {
   description = <<-EOT
     true = crear el proveedor OIDC de GitHub. Solo puede existir uno por cuenta: si la

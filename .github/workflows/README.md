@@ -42,3 +42,15 @@ El CD despliega código, no el modelo. Para publicar un modelo nuevo ver
 [`models/README.md`](../../models/README.md#publicar-una-versión-del-modelo).
 
 Para correrlo a mano: pestaña *Actions → CD → Run workflow* sobre `main`.
+
+## Si falla `Not authorized to perform sts:AssumeRoleWithWebIdentity`
+
+AWS rechazó el token de GitHub. Revisa en este orden:
+
+1. **`AWS_ROLE_ARN`** debe ser exactamente el que imprime `terraform output github_variables`,
+   con el número de la cuenta donde se desplegó (es fácil copiar el de otra cuenta).
+2. **Las variables** deben estar en la pestaña *Variables*, no en *Secrets*.
+3. **Sujetos inmutables**: si el repositorio los usa, el token trae los IDs de la cuenta y del
+   repositorio y el rol debe aceptarlos (`github_oidc_subject_prefix`, ver
+   [`infra/README.md`](../../infra/README.md#desplegar)).
+4. **La rama**: el rol solo acepta `main`; un run sobre otra rama siempre falla.

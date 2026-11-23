@@ -139,10 +139,22 @@ Si pusiste `alarm_email`, confirma el correo de suscripción que manda AWS.
 terraform output github_variables
 ```
 
-Crea esas 5 variables en GitHub: *Settings → Secrets and variables → Actions → Variables*.
-No son secretos: no hay llaves de acceso, GitHub obtiene credenciales temporales por OIDC.
-Desde ahí, cada push a `main` que pase el CI se despliega solo (ver
-[`.github/workflows/README.md`](../.github/workflows/README.md)).
+Crea esas 5 variables en GitHub: *Settings → Secrets and variables → Actions → Variables*
+(pestaña **Variables**, no *Secrets*: el workflow las lee como `vars.*`). En un repositorio de
+una cuenta personal solo la dueña puede crearlas. No son secretos: no hay llaves de acceso,
+GitHub obtiene credenciales temporales por OIDC. Desde ahí, cada push a `main` que pase el CI
+se despliega solo (ver [`.github/workflows/README.md`](../.github/workflows/README.md)).
+
+**Sujetos inmutables.** Algunos repositorios mandan en el token OIDC los IDs de la cuenta y
+del repositorio (`repo:owner@123/repo@456:...`) en vez de solo los nombres. Revísalo con:
+
+```bash
+gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+```
+
+Si responde `"use_immutable_subject": true`, copia el valor de `sub_claim_prefix` a
+`github_oidc_subject_prefix` en `terraform.tfvars` y corre `terraform apply`. Sin eso, el CD
+falla con `Not authorized to perform sts:AssumeRoleWithWebIdentity`.
 
 ## Actualizar
 

@@ -15,6 +15,9 @@ use_lab_role = false
 github_repo = ""
 # false si tu cuenta ya tiene el proveedor OIDC de GitHub de otro proyecto.
 create_github_oidc_provider = true
+# Solo si el repositorio usa sujetos inmutables en sus tokens OIDC. Se obtiene con:
+#   gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix
+github_oidc_subject_prefix = ""
 
 # Avisos por correo. Vacío = sin aviso. Learner Lab: budget_email debe quedar vacío.
 alarm_email  = ""

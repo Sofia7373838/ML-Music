@@ -23,6 +23,16 @@ locals {
     ? one(aws_iam_openid_connect_provider.github[*].arn)
     : one(data.aws_iam_openid_connect_provider.github[*].arn)
   )
+
+  # El claim `sub` del token dice qué repositorio y rama lo pide. Se aceptan dos formatos:
+  # - clásico:    repo:<owner>/<repo>:ref:refs/heads/main
+  # - inmutable:  repo:<owner>@<id>/<repo>@<id>:ref:refs/heads/main (si el repositorio lo
+  #   tiene activado). Los IDs no cambian aunque se renombre la cuenta o el repositorio, así
+  #   nadie puede suplantarlo creando otro con el mismo nombre.
+  github_subjects = [
+    for prefix in compact(["repo:${var.github_repo}", var.github_oidc_subject_prefix]) :
+    "${prefix}:ref:refs/heads/main"
+  ]
 }
 
 # Solo la rama main de este repositorio puede asumir el rol. Ojo: si el job de CD usara
@@ -40,7 +50,8 @@ resource "aws_iam_role" "github_actions" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:ref:refs/heads/main"
+          # Con una lista, IAM acepta cualquiera de los valores.
+          "token.actions.githubusercontent.com:sub" = local.github_subjects
         }
       }
     }]
